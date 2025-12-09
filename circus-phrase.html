@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>馬戲團：語詞大冒險 (詞語教學版)</title>
+    <title>馬戲團：語詞大冒險 (難度選擇版)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Klee+One:wght@600&display=swap" rel="stylesheet">
@@ -57,6 +57,12 @@
             text-shadow: 4px 4px #c0392b;
             margin-bottom: 20px; text-align: center; line-height: 1.5;
         }
+        
+        h2 {
+            font-family: "Klee One", serif;
+            color: #3498db;
+            margin-bottom: 15px;
+        }
 
         .btn {
             font-family: "Klee One", serif;
@@ -66,9 +72,13 @@
             background-color: #e74c3c; color: #fff;
             box-shadow: 4px 4px 0px #c0392b;
             text-transform: uppercase;
+            width: 200px;
         }
         .btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px #c0392b; }
         .btn-secondary { background-color: #3498db; box-shadow: 4px 4px 0px #2980b9; }
+        
+        .btn-easy { background-color: #2ecc71; box-shadow: 4px 4px 0px #27ae60; }
+        .btn-hard { background-color: #8e44ad; box-shadow: 4px 4px 0px #9b59b6; }
 
         .panel {
             background: #2c3e50; border: 4px solid #fff; padding: 20px;
@@ -170,14 +180,29 @@
         <div id="btn-jump" class="control-btn">A</div>
     </div>
 
+    <!-- 教師端 / 預設主選單 -->
     <div id="start-screen" class="ui-screen">
         <div style="font-size: 3rem; margin-bottom: 10px;">🦁🎪🔥</div>
         <h1>CIRCUS WORDS<br>語詞火圈版</h1>
-        <button class="btn" onclick="Game.startGame()">開始遊戲 START</button>
+        <button class="btn" onclick="Game.setDifficulty('normal')">開始遊戲 (預設)</button>
         <button class="btn btn-secondary" onclick="Game.showTeacherPanel()">老師出題 SETUP</button>
         <div style="font-size: 0.9rem; color: #ddd; margin-top: 20px; line-height: 1.6; text-align: left; background:rgba(0,0,0,0.5); padding:10px;">
             <div style="color:#f1c40f">● 正確詞：</div> 按 <span style="border:1px solid white; padding:0 4px;">A</span> 跳起來，穿過火圈吃掉<br>
             <div style="color:#3498db; margin-top:5px;">● 錯誤詞：</div> 按 <span style="border:1px solid white; padding:0 4px;">⬇️</span> 趴下，從火圈下方鑽過<br>
+        </div>
+    </div>
+
+    <!-- 學生端：難度選擇畫面 -->
+    <div id="difficulty-screen" class="ui-screen hidden">
+        <div style="font-size: 3rem; margin-bottom: 10px;">🎯</div>
+        <h1>請選擇難度</h1>
+        
+        <button class="btn btn-easy" onclick="Game.setDifficulty('easy')">簡單 EASY<br><span style="font-size:0.8rem">慢速 / 5命</span></button>
+        <button class="btn" onclick="Game.setDifficulty('normal')">普通 NORMAL<br><span style="font-size:0.8rem">中速 / 3命</span></button>
+        <button class="btn btn-hard" onclick="Game.setDifficulty('hard')">困難 HARD<br><span style="font-size:0.8rem">快速 / 2命</span></button>
+        
+        <div style="font-size: 0.9rem; color: #ddd; margin-top: 30px;">
+            目標：<span id="diff-target-preview" style="color:#f1c40f; font-weight:bold;">...</span>
         </div>
     </div>
 
@@ -189,7 +214,7 @@
             <input type="number" id="time-limit-input" value="120">
             
             <div style="text-align:left;">2. 目標語詞 (逗號分隔)：</div>
-            <textarea id="target-input" rows="4">蘋果, 香蕉, 鳳梨, 西瓜, 葡萄</textarea>
+            <textarea id="target-input" rows="4" placeholder="例如：蘋果, 香蕉, 鳳梨">蘋果, 香蕉, 鳳梨, 西瓜, 葡萄</textarea>
             
             <div style="text-align:left;">3. 干擾語詞 (AI自動補足，可自訂)：</div>
             <textarea id="distractor-input" rows="3" placeholder="例如：桌子, 椅子, 書本..."></textarea>
@@ -208,7 +233,7 @@
         <div id="end-reason" style="margin-bottom: 20px; font-size:1.2rem;"></div>
         <div style="font-size: 1.2rem; margin-bottom: 20px;">SCORE: <span id="final-score">0</span></div>
         <button class="btn" onclick="Game.startGame()">再玩一次 RETRY</button>
-        <button class="btn btn-secondary" onclick="Game.showMenu()">主選單 MENU</button>
+        <button class="btn btn-secondary" onclick="Game.showMenuOrDifficulty()">主選單 MENU</button>
     </div>
     
     <div id="toast">設定已儲存！</div>
@@ -265,6 +290,16 @@ const Game = {
     distractorList: [],
     currentTargetIndex: 0,
     
+    // 遊戲設定參數
+    currentDifficulty: 'normal',
+    config: {
+        easy: { speed: 2.5, lives: 5 },
+        normal: { speed: 3.5, lives: 3 },
+        hard: { speed: 5.0, lives: 2 }
+    },
+    
+    isStudentMode: false, // 判斷是否為學生掃碼進入
+    
     successWord: null,
     
     player: {
@@ -309,7 +344,9 @@ const Game = {
         bindTouch(btnJump, () => this.triggerJump(), () => {});
         bindTouch(btnDuck, () => this.triggerDuck(true), () => this.triggerDuck(false));
 
+        // 這裡檢查 URL，決定要顯示哪個畫面
         this.checkURLParams();
+        
         requestAnimationFrame(() => this.loop());
     },
 
@@ -343,17 +380,38 @@ const Game = {
         const p = new URLSearchParams(window.location.search);
         const w = p.get('words');
         const t = p.get('time');
+        
         if (w) {
-            // 詞語版：使用逗號分隔
+            // 有參數，代表是學生掃碼進入
+            this.isStudentMode = true;
+            // 語詞版：使用逗號或空格分隔
             this.targetList = decodeURIComponent(w).split(/[,，、\s]+/).filter(s => s.trim());
             document.getElementById('target-input').value = this.targetList.join(', ');
+            document.getElementById('diff-target-preview').innerText = this.targetList.slice(0, 3).join('、') + (this.targetList.length > 3 ? '...' : '');
+            
+            // 直接顯示難度選擇畫面，而不是主選單
+            this.toggleScreen('difficulty-screen');
+        } else {
+            // 無參數，教師端，顯示主選單
+            this.isStudentMode = false;
+            this.toggleScreen('start-screen');
         }
+        
         if (t) this.timeLimit = parseInt(t);
     },
 
+    setDifficulty(level) {
+        this.currentDifficulty = level;
+        this.startGame();
+    },
+
     startGame() {
+        // 根據難度設定參數
+        const cfg = this.config[this.currentDifficulty];
+        this.gameSpeed = cfg.speed;
+        this.lives = cfg.lives;
+        
         this.score = 0;
-        this.lives = 3;
         this.mistakes = 0;
         this.timeLeft = this.timeLimit;
         this.currentTargetIndex = 0;
@@ -364,7 +422,6 @@ const Game = {
         this.player.isGrounded = true;
         this.obstacles = [];
         this.spawnTimer = 0;
-        this.gameSpeed = 3.5;
         this.successWord = null;
         
         this.state = 'playing';
@@ -383,15 +440,14 @@ const Game = {
     },
 
     prepareDistractors() {
-        // 詞語版：不進行單字拆解，保持原有輸入
         let rawManual = document.getElementById('distractor-input').value;
+        // 語詞版：分割邏輯
         let manual = rawManual.split(/[,，、\s]+/).filter(s => s.trim());
         
         this.distractorList = [...manual];
         // 補足到 25 個詞
         while (this.distractorList.length < 25) {
             let w = COMMON_WORDS[Math.floor(Math.random() * COMMON_WORDS.length)];
-            // 確保不包含目前的目標詞，也不包含已有的干擾詞
             if (!this.targetList.includes(w) && !this.distractorList.includes(w)) {
                 this.distractorList.push(w);
             }
@@ -403,10 +459,7 @@ const Game = {
             let isTarget = Math.random() < 0.6;
             const targetWord = this.targetList[this.currentTargetIndex];
             
-            // 隨機選一個干擾詞
             let distractor = this.distractorList[Math.floor(Math.random() * this.distractorList.length)];
-            
-            // 確保干擾詞絕對不是目標詞 (雙重確認)
             while(distractor === targetWord) {
                  distractor = this.distractorList[Math.floor(Math.random() * this.distractorList.length)];
             }
@@ -429,17 +482,20 @@ const Game = {
                 fireFrame: 0 
             });
 
-            this.spawnTimer = Math.floor(Math.random() * 110) + 150;
+            // 根據難度微調生成頻率 (越難越密集一點)
+            let baseSpawn = 150;
+            if (this.currentDifficulty === 'hard') baseSpawn = 110;
+            if (this.currentDifficulty === 'easy') baseSpawn = 180;
+            
+            this.spawnTimer = Math.floor(Math.random() * 80) + baseSpawn;
         }
         this.spawnTimer--;
     },
 
     update() {
-        // 如果是暫停狀態，不更新遊戲邏輯，但允許重繪
         if (this.state === 'success_pause') return;
         if (this.state !== 'playing') return;
 
-        // 玩家物理
         if (!this.player.isGrounded) {
             this.player.vy += this.player.gravity;
             this.player.y += this.player.vy;
@@ -472,7 +528,6 @@ const Game = {
 
             // --- 碰撞檢測 ---
             if (Math.abs(this.player.x - ob.x) < 20) {
-                
                 const ringBottom = ob.y + ob.radiusY - 8; 
                 const ringTop = ob.y - ob.radiusY + 8;    
                 
@@ -481,14 +536,12 @@ const Game = {
                 const playerBottom = this.player.y;
 
                 if (this.player.isDucking) {
-                    // 趴下
                     if (playerTop > ringBottom) {
                         // Safe
                     } else {
                          this.handleCrash("撞到火圈！");
                     }
                 } else {
-                    // 站立或跳躍
                     if (this.player.isGrounded) {
                          this.handleCrash("沒跳也沒趴下！");
                     } else {
@@ -511,22 +564,18 @@ const Game = {
             this.score += 500;
             this.playSound('good');
             
-            // 進入成功暫停狀態
             this.state = 'success_pause';
             this.successWord = ob.text;
             
-            // 語音朗讀，讀完後恢復
             this.speak(ob.text, () => {
-                // 回調函數：語音結束後執行
                 this.state = 'playing';
                 this.successWord = null;
                 
-                // 恢復後再切換下一個目標，避免畫面突然跳變
                 this.currentTargetIndex++;
                 if (this.currentTargetIndex >= this.targetList.length) {
                     this.currentTargetIndex = 0;
-                    // 完成一輪，稍微加速
-                    this.gameSpeed = Math.min(this.gameSpeed + 0.5, 7);
+                    // 完成一輪後，速度微幅增加
+                    this.gameSpeed = Math.min(this.gameSpeed + 0.3, 8);
                 }
                 this.speakCurrentTarget();
                 this.updateHUD();
@@ -623,42 +672,33 @@ const Game = {
             this.drawRingText(ctx, ob); 
         });
 
-        // --- 繪製成功暫停時的畫面 ---
         if (this.state === 'success_pause' && this.successWord) {
-            // 半透明黑底
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             ctx.fillRect(0, 0, w, h);
             
-            // 中央大字
             ctx.save();
             ctx.translate(w/2, h/2);
             
-            // 裝飾外框
             ctx.strokeStyle = '#FFF';
             ctx.lineWidth = 4;
-            ctx.strokeRect(-120, -80, 240, 160); // 加寬以容納語詞
+            // 語詞版框框加寬
+            ctx.strokeRect(-120, -80, 240, 160);
             ctx.fillStyle = '#222';
             ctx.fillRect(-120, -80, 240, 160);
             
-            // 文字 (語詞版字體適中)
-            ctx.fillStyle = '#f1c40f'; // 金色字
+            ctx.fillStyle = '#f1c40f'; 
+            // 語詞版字體適中
             ctx.font = "bold 60px 'Klee One'";
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(this.successWord, 0, 0);
             
-            // 提示
             ctx.fillStyle = '#FFF';
             ctx.font = "16px 'Press Start 2P'";
             ctx.fillText("GREAT!", 0, -100);
             
             ctx.restore();
         }
-    },
-
-    drawRect(ctx, x, y, w, h, color) {
-        ctx.fillStyle = color;
-        ctx.fillRect(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h));
     },
 
     drawTentTop(ctx) {
@@ -845,7 +885,7 @@ const Game = {
         const by = ob.y; 
         
         ctx.fillStyle = '#FFF';
-        // 語詞版字體適中 (24px)
+        // 語詞版字體：24px
         ctx.font = "bold 24px 'Klee One'";
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
@@ -955,7 +995,7 @@ const Game = {
 
     updateHUD() {
         document.getElementById('score-val').innerText = this.score.toString().padStart(6, '0');
-        document.getElementById('lives-display').innerText = '❤️'.repeat(this.lives);
+        document.getElementById('lives-display').innerText = '❤️'.repeat(Math.max(0, this.lives));
         document.getElementById('current-target-text').innerText = this.targetList[this.currentTargetIndex];
     },
 
@@ -1008,7 +1048,6 @@ const Game = {
         
         let callbackCalled = false;
         
-        // 確保回調只執行一次
         const handleEnd = () => {
             if (!callbackCalled) {
                 callbackCalled = true;
@@ -1017,16 +1056,14 @@ const Game = {
         };
 
         u.onend = handleEnd;
-        u.onerror = handleEnd; // 錯誤也視為結束，避免卡住
+        u.onerror = handleEnd; 
 
-        // 安全機制：如果語音超過 3 秒沒結束（可能瀏覽器阻擋），強制結束
         setTimeout(handleEnd, 3000);
 
         window.speechSynthesis.speak(u);
     },
     
     speakCurrentTarget() {
-        // 遊戲開始提示音
         if ('speechSynthesis' in window) {
             window.speechSynthesis.cancel();
             const u = new SpeechSynthesisUtterance("請找 " + this.targetList[this.currentTargetIndex]);
@@ -1036,11 +1073,20 @@ const Game = {
     },
 
     toggleScreen(id) {
-        ['start-screen', 'teacher-screen', 'game-over-screen'].forEach(s => document.getElementById(s).classList.add('hidden'));
+        ['start-screen', 'teacher-screen', 'game-over-screen', 'difficulty-screen'].forEach(s => document.getElementById(s).classList.add('hidden'));
         if (id) document.getElementById(id).classList.remove('hidden');
     },
     showTeacherPanel() { this.toggleScreen('teacher-screen'); },
     showMenu() { this.toggleScreen('start-screen'); },
+    
+    // 用於遊戲結束後的按鈕：如果是學生模式，回難度選擇；否則回主選單
+    showMenuOrDifficulty() {
+        if (this.isStudentMode) {
+            this.toggleScreen('difficulty-screen');
+        } else {
+            this.toggleScreen('start-screen');
+        }
+    },
     
     showToast(msg) {
         const x = document.getElementById("toast");
@@ -1053,14 +1099,14 @@ const Game = {
         const t = document.getElementById('target-input').value;
         const time = document.getElementById('time-limit-input').value;
         if (t.trim()) {
-            // 詞語版邏輯：以逗號或空格分隔
+            // 語詞版：分割邏輯
             this.targetList = t.split(/[,，、\s]+/).filter(x => x);
             
             this.timeLimit = parseInt(time) || 120;
             this.showToast("設定已儲存！");
             setTimeout(() => this.showMenu(), 1000);
         } else {
-            this.showToast("請輸入目標詞！");
+            this.showToast("請輸入目標語詞！");
         }
     },
     generateQR() {
