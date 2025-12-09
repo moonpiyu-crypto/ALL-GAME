@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>南極大冒險：語詞接接樂</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&family=Noto+Serif+TC:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            font-family: "Klee One", "BiauKai", "標楷體", serif;
+            overflow: hidden;
+            touch-action: none;
+            color: white;
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #000;
+        }
+
+        canvas {
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            background: #87CEEB;
+            width: 100%;
+            height: 100%;
+            display: block;
+            image-rendering: pixelated;
+        }
+
+        /* UI Overlay Styles */
+        .ui-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 10;
+            transition: opacity 0.3s;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .hidden { display: none !important; }
+
+        h1 {
+            font-size: 2rem;
+            color: #fff;
+            text-shadow: 4px 4px #0055ff;
+            margin-bottom: 30px;
+            text-align: center;
+            font-family: "Press Start 2P", cursive, sans-serif;
+            line-height: 1.5;
+            width: 100%;
+        }
+
+        .btn {
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            margin: 10px auto; 
+            border: 4px solid #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: inherit;
+            box-shadow: 4px 4px 0px #000;
+            transition: transform 0.1s;
+            display: block; 
+            min-width: 200px;
+        }
+        .btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0px #000; }
+
+        .btn-primary { background-color: #f1c40f; color: #000; }
+        .btn-secondary { background-color: #3498db; color: white; }
+        .btn-green { background-color: #2ecc71; color: white; }
+
+        .btn-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .selector-group {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+            margin: 10px auto;
+            text-align: center;
+            width: 90%;
+            max-width: 600px;
+        }
+        
+        .radio-label {
+            background: #fff;
+            color: #000;
+            padding: 8px 15px;
+            margin: 5px;
+            border-radius: 4px;
+            display: inline-block;
+            cursor: pointer;
+        }
+        
+        input[type="radio"]:checked + .radio-label {
+            background: #f1c40f;
+            font-weight: bold;
+            box-shadow: 2px 2px 0 #000;
+        }
+
+        #game-ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        .hud-top {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(to bottom, #000, rgba(0,0,0,0));
+            height: 120px;
+            padding-top: 10px;
+            display: flex;
+            justify-content: space-evenly;
+            align-items: flex-start;
+            font-family: "Press Start 2P", monospace;
+            font-size: 0.8rem;
+            color: #fff;
+            text-shadow: 2px 2px 0 #000;
+            pointer-events: none;
+        }
+        
+        .hud-item { 
+            text-align: center; 
+            background: rgba(0,0,0,0.3);
+            padding: 5px 10px;
+            border-radius: 8px;
+            min-width: 60px;
+        }
+        
+        .hud-value {
+            margin-top: 5px;
+            font-size: 1.1rem;
+            color: #f1c40f;
+            font-weight: bold;
+        }
+
+        /* 目標字樣式：標楷體，無陰影，字體大小隨內容調整(JS控制) */
+        #hud-target-char {
+            font-family: "BiauKai", "標楷體", "Klee One", serif;
+            font-size: 1.8rem; /* 預設大小，JS會動態調整 */
+            color: #e74c3c;
+            background: #fff;
+            padding: 2px 10px;
+            border-radius: 6px;
+            line-height: 1.2;
+            display: inline-block;
+            margin-top: 5px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.5);
+            text-shadow: none !important;
+            max-width: 150px;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+        
+        #hud-level-info {
+            font-size: 0.7rem; 
+            color: #ddd; 
+            margin-bottom: 2px;
+            display: block;
+        }
+
+        #target-display {
+            position: absolute;
+            top: 140px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1rem;
+            color: #000;
+            background: rgba(255,255,255,0.8);
+            padding: 5px 15px;
+            border-radius: 20px;
+            border: 2px solid #aaa;
+            text-align: center;
+            pointer-events: auto; 
+            min-width: 150px;
+        }
+
+        /* Speak Overlay Styles */
+        #speak-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            backdrop-filter: blur(2px);
+        }
+        
+        #speak-content {
+            background: white;
+            color: black;
+            padding: 30px 60px;
+            border-radius: 20px;
+            border: 8px solid #f1c40f;
+            font-size: 4rem; /* 稍微縮小以容納多字 */
+            font-weight: bold;
+            font-family: "BiauKai", "標楷體", serif;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            max-width: 80%;
+            text-align: center;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .panel {
+            background: #fff;
+            color: #000;
+            padding: 20px;
+            border-radius: 10px;
+            border: 4px solid #000;
+            width: 90%;
+            max-width: 500px;
+            max-height: 85vh;
+            overflow-y: auto;
+            text-align: left;
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.5);
+            margin: auto; 
+        }
+
+        input, textarea {
+            width: 95%;
+            padding: 10px;
+            margin: 5px 0;
+            font-family: inherit;
+            font-size: 1rem;
+            border: 2px solid #333;
+            border-radius: 5px;
+        }
+        
+        #pause-btn {
+            position: absolute;
+            top: 30px;
+            right: 20px;
+            font-size: 1.2rem;
+            color: white;
+            cursor: pointer;
+            background: #e74c3c;
+            padding: 8px 15px;
+            border: 2px solid white;
+            border-radius: 5px;
+            pointer-events: auto;
+            font-family: sans-serif;
+            font-weight: bold;
+            box-shadow: 2px 2px 0 rgba(0,0,0,0.3);
+            z-index: 30;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="game-ui">
+        <div class="hud-top">
+            <div class="hud-item" style="min-width: 100px;">
+                <span id="hud-level-info">第 1 關</span>
+                <div id="hud-target-char">?</div>
+            </div>
+            <div class="hud-item">SCORE<br><div id="score-board" class="hud-value">0</div></div>
+            <div class="hud-item">TIME<br><div id="timer-board" class="hud-value">60</div></div>
+            <div class="hud-item">LIFE<br><div id="lives-board" class="hud-value">❤️❤️❤️</div></div>
+        </div>
+        
+        <div id="target-display">
+            <span style="font-size:0.8em; color:#555;">收集進度</span><br>
+            <span id="level-progress" style="font-weight:bold; color:#000;">0/5</span>
+        </div>
+
+        <div id="pause-btn" onclick="Game.togglePause()">||</div>
+    </div>
+    
+    <!-- Speak Overlay -->
+    <div id="speak-overlay" class="hidden">
+        <div id="speak-content">字</div>
+    </div>
+
+    <!-- Main Menu -->
+    <div id="start-screen" class="ui-screen">
+        <h1>南極大冒險<br><span style="font-size:0.6em; color:#f1c40f">語詞接接樂</span></h1>
+        <div class="btn-container">
+            <button class="btn btn-primary" onclick="Game.showTeacherPanel()">我是老師 (設定)</button>
+            <button class="btn btn-secondary" onclick="Game.showSetupScreen(false)">開始冒險</button>
+        </div>
+        <div style="color:#aaa; font-size:0.8rem; margin-top:20px; text-align:center; line-height: 1.6;">
+            電腦：使用 左右鍵 移動<br>手機：左右滑動移動
+        </div>
+    </div>
+
+    <!-- Setup Screen -->
+    <div id="setup-screen" class="ui-screen hidden">
+        <h1>準備出發</h1>
+        <div id="teacher-msg" style="display:none; color: #f1c40f; margin-bottom: 10px; font-weight:bold; font-size:1.2rem;">★ 老師已設定題目</div>
+        <div class="selector-group">
+            <p>遊戲難度</p>
+            <label><input type="radio" name="setup-diff-select" value="easy"> <span class="radio-label">簡單 (慢)</span></label>
+            <label><input type="radio" name="setup-diff-select" value="medium" checked> <span class="radio-label">普通 (中)</span></label>
+            <label><input type="radio" name="setup-diff-select" value="hard"> <span class="radio-label">困難 (快)</span></label>
+        </div>
+        <div class="btn-container">
+            <button class="btn btn-primary" onclick="Game.startFromSetup()">GO!</button>
+            <button class="btn btn-secondary" style="margin-top:20px; font-size:0.8rem; padding:10px;" onclick="Game.showMenu()">返回</button>
+        </div>
+    </div>
+
+    <!-- Teacher Panel -->
+    <div id="teacher-screen" class="ui-screen hidden">
+        <div class="panel">
+            <h2 style="margin-top:0; border-bottom:2px solid #eee; padding-bottom:10px; text-align:center;">題目設定</h2>
+            <p style="font-size:0.8rem; color:#e74c3c;">★ 請用「逗號」或「空白」分隔語詞</p>
+            <label>1. 練習語詞 (每詞一關):</label>
+            <textarea id="target-input" rows="3" placeholder="例如：開心,快樂,平安" oninput="Game.updateDistractorsPreview()">開心 快樂 平安</textarea>
+            <label>2. 自訂干擾詞 (選填):</label>
+            <textarea id="distractor-input" rows="3" placeholder="例如：生氣,難過 (若不填則使用內建詞庫)" oninput="Game.updateDistractorsPreview()"></textarea>
+            <label>3. 遊戲時間 (秒):</label>
+            <input type="number" id="time-input" value="60" style="width:80px;">
+            <div style="margin-top:15px; background:#f9f9f9; padding:10px; border-radius:5px; border:1px solid #ddd;">
+                <div id="preview-text" style="font-size:0.9rem; color:#555;"></div>
+            </div>
+            <div class="btn-container" style="margin-top:20px;">
+                <button class="btn btn-primary" onclick="Game.saveSettings()">直接開始</button>
+                <button class="btn btn-green" onclick="Game.generateShareLink()">產生分享碼</button>
+                <div id="share-section" class="hidden" style="text-align:center;">
+                    <img id="qr-code-img" style="display:block; margin:10px auto; border:4px solid white; width:150px; height:150px; background:#ccc;">
+                    <input type="text" id="share-link-box" readonly onclick="this.select()" style="font-size:0.8rem;">
+                </div>
+                <button class="btn btn-secondary" onclick="Game.showMenu()">返回選單</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game Over -->
+    <div id="game-over-screen" class="ui-screen hidden">
+        <h1 style="color:#e74c3c;">GAME OVER</h1>
+        <h2 id="final-score" style="color: #fff; margin-bottom: 30px;">SCORE: 0</h2>
+        <div class="btn-container">
+            <button class="btn btn-primary" onclick="Game.restart()">再玩一次</button>
+            <button class="btn btn-secondary" onclick="Game.showMenu()">回主選單</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// 通用詞庫 (當沒有設定干擾詞時使用)
+const COMMON_WORDS_POOL = [
+    "太陽", "月亮", "星星", "天空", "白雲", "彩虹", "蘋果", "香蕉", "西瓜", "葡萄",
+    "桌子", "椅子", "電腦", "書本", "鉛筆", "老師", "學生", "學校", "公園", "動物",
+    "老虎", "獅子", "大象", "兔子", "小狗", "小貓", "唱歌", "跳舞", "畫畫", "跑步",
+    "游泳", "吃飯", "睡覺", "洗澡", "刷牙", "開門", "關窗", "上下", "左右", "大小"
+];
+
+const DIFFICULTY_SETTINGS = {
+    'easy': { speed: 80, spawnRate: 120 },    
+    'medium': { speed: 150, spawnRate: 80 },  
+    'hard': { speed: 250, spawnRate: 50 }     
+};
+
+const FLAG_COLORS = ['#e74c3c', '#f1c40f', '#2ecc71', '#3498db', '#9b59b6', '#e67e22', '#1abc9c'];
+
+const Game = {
+    canvas: document.getElementById('gameCanvas'),
+    ctx: null,
+    width: 0,
+    height: 0,
+    state: 'start',
+    paused: false,
+    isSpeaking: false,
+    
+    score: 0,
+    lives: 3,
+    timeLeft: 60,
+    gameDuration: 60,
+    lastTime: 0,
+    frameCount: 0,
+    
+    cameraHeight: 0, 
+    horizonY: 0, 
+    focalLength: 350, 
+    
+    seaEdgeX: -500, 
+    roadMaxX: 1000, 
+    roadZOffset: 0, 
+    minPlayableX: -180, 
+    maxPlayableX: 180,
+
+    player: { x: 0, y: 0, z: 0, width: 30, height: 40, speedX: 10, invincible: 0, flying: 0, stunned: 0, wobble: 0 },
+    
+    objects: [],
+    clouds: [], 
+    
+    targetList: ['開心', '快樂', '平安'], // 預設題目
+    customDistractors: [],
+    currentTargetIndex: 0,
+    targetChar: '',
+    currentDistractors: [],
+    levelProgress: 0,
+    HITS_TO_ADVANCE: 5,
+    difficulty: 'medium',
+    
+    keys: {},
+    touchStartX: null,
+    isDragging: false,
+    audioCtx: null,
+    
+    init() {
+        this.ctx = this.canvas.getContext('2d', { alpha: false });
+        this.resize();
+        this.initClouds();
+        window.addEventListener('resize', () => this.resize());
+        
+        window.addEventListener('keydown', e => {
+            this.keys[e.key] = true;
+            if(e.key === 'p' || e.key === 'P') this.togglePause();
+        });
+        window.addEventListener('keyup', e => this.keys[e.key] = false);
+        
+        this.canvas.addEventListener('touchstart', e => {
+            e.preventDefault();
+            this.touchStartX = e.touches[0].clientX;
+            this.isDragging = false; 
+        }, {passive: false});
+        
+        this.canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            if (this.state !== 'playing' || this.player.stunned > 0 || this.isSpeaking) return;
+            
+            const touchX = e.touches[0].clientX;
+            const diffX = touchX - this.touchStartX;
+
+            if (Math.abs(diffX) > 5) {
+                this.isDragging = true;
+                let nextX = this.player.x + diffX * 2.0; 
+                if (nextX < this.minPlayableX) nextX = this.minPlayableX; 
+                if (nextX > this.maxPlayableX) nextX = this.maxPlayableX;
+                this.player.x = nextX;
+                this.touchStartX = touchX; 
+            }
+        }, {passive: false});
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const sharedWords = urlParams.get('words');
+        const sharedDist = urlParams.get('dist');
+        const sharedTime = urlParams.get('time');
+
+        if (sharedWords) {
+            // 解析 URL 參數 (支援逗號分隔)
+            this.targetList = decodeURIComponent(sharedWords).split(/[,，\s]+/).filter(w => w.length > 0);
+            if (sharedDist) {
+                this.customDistractors = decodeURIComponent(sharedDist).split(/[,，\s]+/).filter(w => w.length > 0);
+            } else {
+                this.customDistractors = [];
+            }
+            this.gameDuration = parseInt(sharedTime) || 60;
+            
+            document.getElementById('target-input').value = this.targetList.join(' ');
+            document.getElementById('distractor-input').value = this.customDistractors.join(' ');
+            document.getElementById('time-input').value = this.gameDuration;
+            this.showSetupScreen(true);
+        } else {
+            this.showMenu();
+        }
+        
+        requestAnimationFrame(t => this.loop(t));
+    },
+
+    resize() {
+        this.width = window.innerWidth;
+        this.height = window.innerHeight;
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+        this.horizonY = this.height * 0.3; 
+        this.cameraHeight = this.height * 0.55; 
+        this.ctx.imageSmoothingEnabled = false; 
+    },
+
+    initClouds() {
+        this.clouds = [];
+        for(let i=0; i<6; i++) {
+            this.clouds.push({
+                x: Math.random() * this.width,
+                y: Math.random() * this.horizonY * 0.8,
+                w: 60 + Math.random() * 80, 
+                h: 30 + Math.random() * 40, 
+                speed: 0.1 + Math.random() * 0.3
+            });
+        }
+    },
+
+    project(x, y, z) {
+        if (z < -this.focalLength + 10) z = -this.focalLength + 10; 
+        const scale = this.focalLength / (this.focalLength + z);
+        const camX = (this.width / 2) + x * scale;
+        const screenY = this.horizonY + (y + this.cameraHeight) * scale;
+        return { x: camX, y: screenY, scale: scale };
+    },
+
+    showMenu() { this.toggleUI('start-screen'); },
+    showSetupScreen(isStudent) {
+        this.toggleUI('setup-screen');
+        document.getElementById('teacher-msg').style.display = isStudent ? 'block' : 'none';
+    },
+    showTeacherPanel() { this.toggleUI('teacher-screen'); this.updateDistractorsPreview(); },
+    
+    toggleUI(id) {
+        document.querySelectorAll('.ui-screen').forEach(el => el.classList.add('hidden'));
+        if(id) document.getElementById(id).classList.remove('hidden');
+        this.state = id ? 'menu' : 'playing';
+        this.isSpeaking = false; 
+        document.getElementById('speak-overlay').classList.add('hidden');
+        
+        if (!id) {
+            document.getElementById('pause-btn').style.display = 'block';
+            document.getElementById('game-ui').style.opacity = 1;
+        } else {
+            document.getElementById('pause-btn').style.display = 'none';
+            document.getElementById('target-display').style.opacity = id ? 0 : 1;
+        }
+    },
+
+    startFromSetup() {
+        const r = document.querySelector('input[name="setup-diff-select"]:checked');
+        if (r) this.difficulty = r.value;
+        this.startGame();
+    },
+
+    startGame() {
+        this.toggleUI('');
+        this.score = 0;
+        this.lives = 3;
+        this.timeLeft = this.gameDuration;
+        this.objects = [];
+        this.player.x = 0; 
+        this.player.y = 0;
+        this.player.stunned = 0;
+        this.player.invincible = 0;
+        this.player.flying = 0;
+        this.player.wobble = 0;
+        this.frameCount = 0;
+        this.levelProgress = 0;
+        this.currentTargetIndex = 0;
+        this.roadZOffset = 0;
+        this.isSpeaking = false;
+        this.updateLivesDisplay();
+        document.getElementById('score-board').innerText = `0`;
+        
+        // 確保題目列表不為空
+        if(this.targetList.length === 0) this.targetList = ['開心', '快樂', '平安'];
+        
+        // 開始第一關
+        this.setCurrentTarget(this.targetList[0]);
+        // 播放開始提示音
+        this.playSound('start');
+        this.initAudio(); 
+        this.unlockSpeech();
+        
+        // 第一關使用簡短語音
+        setTimeout(() => {
+            this.speakFirstTarget(this.targetList[0]);
+        }, 500);
+        
+        this.lastTime = performance.now();
+    },
+
+    setCurrentTarget(char) {
+        this.targetChar = char;
+        this.currentDistractors = this.getDistractorsFor(char);
+        
+        // 更新上方HUD的目標字
+        const hudTarget = document.getElementById('hud-target-char');
+        hudTarget.innerText = char;
+        // 動態調整字體大小 (字數越多字越小)
+        if (char.length > 3) hudTarget.style.fontSize = "1.2rem";
+        else if (char.length > 2) hudTarget.style.fontSize = "1.5rem";
+        else hudTarget.style.fontSize = "2.0rem";
+
+        document.getElementById('hud-level-info').innerText = `第 ${this.currentTargetIndex + 1} 關`;
+        document.getElementById('level-progress').innerText = `${this.levelProgress}/${this.HITS_TO_ADVANCE}`;
+    },
+
+    getDistractorsFor(target) {
+        let pool = [];
+        // 如果有自訂干擾詞，優先使用
+        if (this.customDistractors.length > 0) {
+            pool = [...this.customDistractors];
+            pool = pool.filter(c => c !== target);
+        } 
+        
+        // 如果池子空了 (沒自訂或剛好都跟目標一樣)，使用通用詞庫
+        if (pool.length === 0) {
+            pool = [...COMMON_WORDS_POOL];
+            pool = pool.filter(c => c !== target);
+        }
+
+        // 隨機選出 5 個不重複的干擾詞
+        let selected = [];
+        let failsafe = 0;
+        while(selected.length < 5 && failsafe < 100) {
+            let r = pool[Math.floor(Math.random() * pool.length)];
+            if(r !== target && !selected.includes(r)) {
+                selected.push(r);
+            }
+            failsafe++;
+        }
+        return selected;
+    },
+    
+    updateDistractorsPreview() {
+        const targetVal = document.getElementById('target-input').value;
+        const distVal = document.getElementById('distractor-input').value;
+        const previewDiv = document.getElementById('preview-text');
+        
+        if (!targetVal) { previewDiv.innerText = "請輸入練習語詞"; return; }
+        
+        // 簡單解析顯示
+        const targets = targetVal.split(/[,，\s]+/).filter(w => w.length>0);
+        const dists = distVal.split(/[,，\s]+/).filter(w => w.length>0);
+        
+        let msg = `題目共 ${targets.length} 關。`;
+        if (dists.length > 0) {
+            msg += ` 干擾詞：使用自訂 (${dists.length} 個)`;
+        } else {
+            msg += ` 干擾詞：使用系統內建詞庫`;
+        }
+        previewDiv.innerText = msg;
+    },
+    
+    generateShareLink() {
+        const words = document.getElementById('target-input').value.trim();
+        const dists = document.getElementById('distractor-input').value.trim();
+        const time = document.getElementById('time-input').value;
+        if(!words) return alert("請輸入練習語詞");
+        
+        // 簡單的 URL 編碼
+        let url = `${window.location.origin}${window.location.pathname}?words=${encodeURIComponent(words)}&time=${time}`;
+        if (dists.length > 0) url += `&dist=${encodeURIComponent(dists)}`;
+        
+        document.getElementById('share-link-box').value = url;
+        document.getElementById('qr-code-img').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(url)}`;
+        document.getElementById('share-section').classList.remove('hidden');
+    },
+    
+    saveSettings() {
+        const words = document.getElementById('target-input').value.trim();
+        const dists = document.getElementById('distractor-input').value.trim();
+        const time = parseInt(document.getElementById('time-input').value);
+        
+        if(words) {
+            // 使用正則表達式分割：逗號、中文逗號、空白
+            this.targetList = words.split(/[,，\s]+/).filter(w => w.length > 0);
+            if(dists.length > 0) {
+                this.customDistractors = dists.split(/[,，\s]+/).filter(w => w.length > 0);
+            } else {
+                this.customDistractors = [];
+            }
+        }
+        if(time) this.gameDuration = time;
+        this.startGame(); 
+    },
+
+    togglePause() {
+        if(this.state !== 'playing' || this.isSpeaking) return;
+        this.paused = !this.paused;
+        document.getElementById('pause-btn').innerText = this.paused ? "▶" : "||";
+        if(this.paused) {
+            this.ctx.fillStyle = "rgba(0,0,0,0.5)";
+            this.ctx.fillRect(0,0,this.width, this.height);
+            this.ctx.fillStyle = "#fff";
+            this.ctx.font = "30px sans-serif";
+            this.ctx.textAlign = "center";
+            this.ctx.fillText("PAUSED", this.width/2, this.height/2);
+        }
+    },
+
+    loop(timestamp) {
+        requestAnimationFrame(t => this.loop(t));
+        if (this.state !== 'playing') return;
+        
+        const dt = (timestamp - this.lastTime) / 1000;
+        if (dt > 0.1) this.lastTime = timestamp; 
+        
+        this.lastTime = timestamp;
+
+        if (!this.paused && !this.isSpeaking) {
+            if (this.frameCount % 60 === 0) {
+                this.timeLeft--;
+                document.getElementById('timer-board').innerText = this.timeLeft.toString().padStart(2,'0');
+                if (this.timeLeft <= 0) return this.gameOver();
+            }
+
+            this.updateGameLogic();
+        }
+        
+        this.draw(); 
+        
+        if (!this.paused && !this.isSpeaking) {
+            this.frameCount++;
+        }
+    },
+
+    updateGameLogic() {
+        const currentSpeed = DIFFICULTY_SETTINGS[this.difficulty].speed;
+        
+        this.clouds.forEach(c => {
+            c.x += c.speed;
+            if(c.x > this.width + 50) c.x = -50;
+        });
+
+        if (this.player.stunned <= 0) {
+            this.roadZOffset += currentSpeed * 0.15;
+            if(this.roadZOffset > 100) this.roadZOffset -= 100; 
+        }
+
+        if (this.player.stunned > 0) {
+            this.player.stunned--;
+        } else {
+            let nextX = this.player.x;
+            if (this.keys['ArrowLeft']) nextX -= this.player.speedX;
+            if (this.keys['ArrowRight']) nextX += this.player.speedX;
+            
+            if (nextX < this.minPlayableX) nextX = this.minPlayableX;
+            if (nextX > this.maxPlayableX) nextX = this.maxPlayableX;
+            this.player.x = nextX;
+        }
+
+        if (this.player.stunned <= 0 && this.player.flying <= 0) {
+            this.player.wobble = Math.sin(this.frameCount * 0.25) * 0.15; 
+        } else {
+            this.player.wobble = 0; 
+        }
+
+        if (this.player.flying > 0) {
+            this.player.y = -150; 
+            this.player.flying--;
+        } else {
+            this.player.y = 0; 
+        }
+        
+        if (this.player.invincible > 0) this.player.invincible--;
+
+        for (let i = this.objects.length - 1; i >= 0; i--) {
+            let obj = this.objects[i];
+            obj.z -= currentSpeed * (this.player.stunned > 0 ? 0 : 1) * 0.1;
+            
+            if (obj.z < 30 && obj.z > -30 && !obj.hit) {
+                let collisionDist = (obj.width + this.player.width) * 0.55;
+                if (Math.abs(obj.x - this.player.x) < collisionDist) {
+                    this.handleCollision(obj);
+                }
+            }
+
+            if (obj.z < -200) {
+                this.objects.splice(i, 1);
+            }
+        }
+
+        const spawnRate = DIFFICULTY_SETTINGS[this.difficulty].spawnRate;
+        if (this.frameCount % spawnRate === 0 && this.player.stunned <= 0) {
+            this.spawnObject();
+        }
+    },
+
+    spawnObject() {
+        const types = ['target', 'distractor', 'distractor', 'hole', 'hole', 'fish', 'star', 'propeller'];
+        let r = Math.random();
+        let type;
+        
+        if (r < 0.25) type = 'target';
+        else if (r < 0.55) type = 'distractor';
+        else if (r < 0.85) type = 'hole';
+        else if (r < 0.90) type = 'fish';
+        else if (r < 0.95) type = 'star';
+        else type = 'propeller';
+
+        const hasTarget = this.objects.some(o => o.type === 'target');
+        if (!hasTarget && Math.random() > 0.4) type = 'target';
+
+        const safeMargin = 40;
+        const minSpawnX = this.minPlayableX + safeMargin;
+        const maxSpawnX = this.maxPlayableX - safeMargin;
+        
+        let xPos = minSpawnX + Math.random() * (maxSpawnX - minSpawnX);
+        let color = FLAG_COLORS[Math.floor(Math.random() * FLAG_COLORS.length)];
+
+        let obj = {
+            x: xPos, y: 0, z: 2500, 
+            type: type, width: 100, hit: false, text: '',
+            color: color
+        };
+
+        if (type === 'target') obj.text = this.targetChar;
+        if (type === 'distractor') {
+            // 隨機從目前干擾詞池中選一個
+            if (this.currentDistractors.length > 0) {
+                obj.text = this.currentDistractors[Math.floor(Math.random() * this.currentDistractors.length)];
+            } else {
+                obj.text = "錯誤"; // Fallback
+            }
+        }
+        if (type === 'hole') obj.width = 120;
+        
+        this.objects.push(obj);
+    },
+
+    handleCollision(obj) {
+        if (obj.hit) return;
+        const isSafe = this.player.invincible > 0 || this.player.flying > 0;
+
+        if (obj.type === 'target') {
+            if (this.player.y > -50 || this.player.flying > 0) { 
+                this.score += 10; 
+                this.levelProgress++; 
+                this.playSound('good'); 
+                obj.hit = true;
+                
+                // 檢查是否過關 (5個詞)
+                if (this.levelProgress >= this.HITS_TO_ADVANCE) {
+                    // 1. 先朗讀吃到的詞
+                    this.speakAndPause(obj.text, () => {
+                        // 2. 語音結束後，執行過關邏輯 (切換到下一個詞)
+                        const newChar = this.checkLevelUp(); 
+                        
+                        if (newChar) {
+                            // 3. 播放下一關提示語音
+                            this.speakNextTarget(newChar, () => {
+                                this.isSpeaking = false;
+                                document.getElementById('speak-overlay').classList.add('hidden');
+                            });
+                        } else {
+                            this.isSpeaking = false;
+                            document.getElementById('speak-overlay').classList.add('hidden');
+                        }
+                    });
+                } else {
+                    // 一般吃詞：更新進度並朗讀
+                    this.checkLevelUp(); 
+                    this.speakAndPause(obj.text); 
+                }
+            }
+        } 
+        else if (obj.type === 'distractor') {
+            if (!isSafe && this.player.y > -50) { 
+                this.player.stunned = 40; 
+                this.score = Math.max(0, this.score - 5);
+                this.playSound('crash'); 
+                obj.hit = true;
+            }
+        }
+        else if (obj.type === 'hole') {
+            if (!isSafe && this.player.y > -20) {
+                this.loseLife(); obj.hit = true;
+            }
+        }
+        else if (obj.type === 'fish') {
+            this.score += 50; this.playSound('powerup'); 
+            obj.hit = true;
+        }
+        else if (obj.type === 'star') {
+            this.player.invincible = 300; this.playSound('powerup'); 
+            obj.hit = true;
+        }
+        else if (obj.type === 'propeller') {
+            this.player.flying = 300; this.playSound('powerup'); 
+            obj.hit = true;
+        }
+        document.getElementById('score-board').innerText = this.score;
+    },
+
+    speakAndPause(text, onComplete) {
+        if (!('speechSynthesis' in window)) {
+            if (onComplete) onComplete();
+            return;
+        }
+        
+        const overlay = document.getElementById('speak-overlay');
+        const content = document.getElementById('speak-content');
+        
+        // 調整 overlay 字體大小
+        if(text.length > 3) content.style.fontSize = "3rem";
+        else content.style.fontSize = "5rem";
+
+        content.innerText = text;
+        overlay.classList.remove('hidden');
+
+        this.isSpeaking = true;
+        window.speechSynthesis.cancel(); 
+        
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = 'zh-TW';
+        u.rate = 0.8; 
+        
+        u.onend = () => {
+            if (onComplete) {
+                onComplete();
+            } else {
+                this.isSpeaking = false;
+                overlay.classList.add('hidden');
+            }
+        };
+
+        u.onerror = () => {
+            setTimeout(() => {
+                if (onComplete) {
+                    onComplete();
+                } else {
+                    this.isSpeaking = false;
+                    overlay.classList.add('hidden');
+                }
+            }, 1000);
+        };
+
+        window.speechSynthesis.speak(u);
+    },
+
+    loseLife() {
+        this.lives--;
+        this.playSound('die');
+        this.updateLivesDisplay();
+        this.player.stunned = 60; 
+        if (this.lives <= 0) this.gameOver();
+    },
+
+    updateLivesDisplay() {
+        let heartStr = "";
+        for(let i=0; i<this.lives; i++) heartStr += "❤️";
+        document.getElementById('lives-board').innerText = heartStr;
+    },
+
+    checkLevelUp() {
+        if (this.levelProgress >= this.HITS_TO_ADVANCE) {
+            this.levelProgress = 0;
+            
+            // 進入下一關
+            this.currentTargetIndex = (this.currentTargetIndex + 1) % this.targetList.length;
+            const newChar = this.targetList[this.currentTargetIndex];
+            
+            this.setCurrentTarget(newChar);
+            this.playSound('levelup'); 
+            
+            // 清除畫面物件
+            this.objects = this.objects.filter(o => o.type !== 'target' && o.type !== 'distractor');
+            
+            return newChar;
+        } else {
+            document.getElementById('level-progress').innerText = `${this.levelProgress}/${this.HITS_TO_ADVANCE}`;
+            return null;
+        }
+    },
+    
+    // 第一關語音
+    speakFirstTarget(char) {
+        if ('speechSynthesis' in window) {
+            const u = new SpeechSynthesisUtterance(`請接：${char}`);
+            u.lang = 'zh-TW';
+            window.speechSynthesis.speak(u);
+        }
+    },
+
+    // 過關後的長語音
+    speakNextTarget(char, onComplete) {
+        if (!('speechSynthesis' in window)) {
+            if (onComplete) onComplete();
+            return;
+        }
+        
+        const content = document.getElementById('speak-content');
+        if(char.length > 3) content.style.fontSize = "3rem";
+        else content.style.fontSize = "5rem";
+        content.innerText = char;
+
+        const u = new SpeechSynthesisUtterance(`太棒了！現在要接的是：${char}。${char}`);
+        u.lang = 'zh-TW';
+        
+        u.onend = () => {
+            if (onComplete) onComplete();
+        };
+        
+        window.speechSynthesis.speak(u);
+    },
+
+    gameOver() {
+        this.state = 'gameover';
+        document.getElementById('final-score').innerText = "SCORE: " + this.score;
+        this.toggleUI('game-over-screen');
+    },
+
+    restart() { this.startGame(); },
+
+    draw() {
+        this.ctx.clearRect(0,0,this.width, this.height);
+
+        // 天空
+        const skyGrad = this.ctx.createLinearGradient(0, 0, 0, this.horizonY);
+        skyGrad.addColorStop(0, "#4facfe");
+        skyGrad.addColorStop(1, "#00f2fe");
+        this.ctx.fillStyle = skyGrad;
+        this.ctx.fillRect(0, 0, this.width, this.horizonY);
+
+        // 雲朵
+        this.ctx.fillStyle = "rgba(255,255,255,0.8)";
+        this.clouds.forEach(c => {
+            this.ctx.beginPath();
+            this.ctx.arc(c.x, c.y, c.w*0.3, 0, Math.PI*2);
+            this.ctx.arc(c.x + c.w*0.25, c.y - c.h*0.3, c.w*0.35, 0, Math.PI*2);
+            this.ctx.arc(c.x + c.w*0.5, c.y, c.w*0.3, 0, Math.PI*2);
+            this.ctx.fill();
+        });
+
+        this.drawMountains();
+
+        this.ctx.fillStyle = "#f0f8ff"; 
+        this.ctx.fillRect(0, this.horizonY, this.width, this.height - this.horizonY);
+        
+        this.drawGroundStripes();
+        this.drawSea();
+
+        this.objects.sort((a, b) => b.z - a.z);
+        
+        let playerDrawn = false;
+        this.objects.forEach(obj => {
+            if (!playerDrawn && obj.z < 0) {
+                this.drawPlayer();
+                playerDrawn = true;
+            }
+            this.drawObject(obj);
+        });
+        if (!playerDrawn) this.drawPlayer(); 
+
+        if (this.player.stunned > 0 && this.frameCount % 8 < 4) {
+            this.ctx.fillStyle = "rgba(255,0,0,0.3)";
+            this.ctx.fillRect(0,0,this.width, this.height);
+        }
+    },
+
+    drawGroundStripes() {
+        const stripeInterval = 200; 
+        const maxDrawZ = 3000;
+        
+        this.ctx.fillStyle = "#e6f3ff"; 
+
+        for(let z = maxDrawZ; z > 0; z -= stripeInterval) {
+            let effectiveZ = z - (this.roadZOffset % stripeInterval);
+            if (effectiveZ <= 10) continue; 
+
+            let p1 = this.project(-2000, 0, effectiveZ);
+            let p2 = this.project(-2000, 0, effectiveZ + 80); 
+
+            if (p2.y > p1.y) {
+                this.ctx.fillRect(0, p1.y, this.width, p2.y - p1.y);
+            }
+        }
+    },
+
+    drawSea() {
+        const seaColor = "#006994"; 
+        this.ctx.fillStyle = seaColor;
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, this.height);
+        
+        const step = 200;
+        for (let z = 0; z < 4000; z += step) {
+            let p = this.project(this.seaEdgeX, 0, z);
+            let wave = Math.sin(z * 0.01 + this.frameCount * 0.1) * 8;
+            this.ctx.lineTo(p.x + wave, p.y);
+        }
+        
+        this.ctx.lineTo(0, this.horizonY);
+        this.ctx.closePath();
+        this.ctx.fill();
+
+        this.ctx.strokeStyle = "rgba(255,255,255,0.8)";
+        this.ctx.lineWidth = 4;
+        this.ctx.beginPath();
+        for (let z = 0; z < 3000; z += step) {
+            let p = this.project(this.seaEdgeX, 0, z);
+            let wave = Math.sin(z * 0.01 + this.frameCount * 0.1) * 8;
+            if (z === 0) this.ctx.moveTo(p.x + wave, p.y);
+            else this.ctx.lineTo(p.x + wave, p.y);
+        }
+        this.ctx.stroke();
+    },
+
+    drawMountains() {
+        const parallaxX = this.player.x * 0.1; 
+        
+        this.ctx.fillStyle = "#cceeff"; 
+        
+        const mountainWidth = 200;
+        const totalW = this.width + mountainWidth;
+        const offset = parallaxX % mountainWidth;
+        
+        for(let x = -mountainWidth * 2; x < this.width + mountainWidth; x += mountainWidth) {
+            let drawX = x - offset;
+            let h = 60 + Math.sin(x)*20; 
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(drawX, this.horizonY);
+            this.ctx.lineTo(drawX + mountainWidth/2, this.horizonY - h);
+            this.ctx.lineTo(drawX + mountainWidth, this.horizonY);
+            this.ctx.fill();
+            
+            this.ctx.fillStyle = "#aaddff";
+            this.ctx.beginPath();
+            this.ctx.moveTo(drawX + mountainWidth/2, this.horizonY - h);
+            this.ctx.lineTo(drawX + mountainWidth, this.horizonY);
+            this.ctx.lineTo(drawX + mountainWidth/2, this.horizonY);
+            this.ctx.fill();
+            this.ctx.fillStyle = "#cceeff"; 
+        }
+    },
+
+    drawObject(obj) {
+        if (obj.hit && obj.type !== 'hole') return;
+        const proj = this.project(obj.x, obj.y, obj.z);
+        const scale = proj.scale;
+        const w = obj.width * scale;
+        const h = 40 * scale; 
+
+        // 繪製陰影
+        if (['target', 'distractor', 'fish', 'star'].includes(obj.type)) {
+            this.ctx.fillStyle = "rgba(0,0,0,0.2)";
+            this.ctx.beginPath();
+            this.ctx.ellipse(proj.x, proj.y, w/1.5, h/5, 0, 0, Math.PI*2);
+            this.ctx.fill();
+        }
+
+        if (obj.type === 'hole') {
+            this.ctx.fillStyle = "#004080"; 
+            this.ctx.beginPath();
+            this.ctx.ellipse(proj.x, proj.y, w, h/2, 0, 0, Math.PI*2);
+            this.ctx.fill();
+            
+            this.ctx.fillStyle = "#002040";
+            this.ctx.beginPath();
+            this.ctx.ellipse(proj.x, proj.y - 2*scale, w*0.9, h/2*0.9, 0, 0, Math.PI*2);
+            this.ctx.fill();
+        } 
+        else if (obj.type === 'target' || obj.type === 'distractor') {
+            const poleH = h * 1.8; 
+            
+            this.ctx.strokeStyle = "#888";
+            this.ctx.lineWidth = 4 * scale;
+            this.ctx.beginPath();
+            this.ctx.moveTo(proj.x - w/2, proj.y); 
+            this.ctx.lineTo(proj.x - w/2, proj.y - poleH);
+            this.ctx.stroke();
+
+            const wave = Math.sin(this.frameCount * 0.2 + obj.z * 0.01) * 5 * scale;
+            
+            this.ctx.fillStyle = obj.color; 
+            this.ctx.beginPath();
+            this.ctx.moveTo(proj.x - w/2, proj.y - poleH);
+            this.ctx.lineTo(proj.x + w, proj.y - poleH + 10 * scale + wave); 
+            this.ctx.lineTo(proj.x + w, proj.y - poleH + 60 * scale + wave); 
+            this.ctx.lineTo(proj.x - w/2, proj.y - poleH + 50 * scale);
+            this.ctx.fill();
+
+            this.ctx.fillStyle = "#000";
+            
+            // --- 自動縮放字體大小邏輯 ---
+            let fontSize = 40;
+            if (obj.text.length > 3) fontSize = 22;
+            else if (obj.text.length > 2) fontSize = 28;
+            else if (obj.text.length > 1) fontSize = 34;
+
+            this.ctx.font = `bold ${fontSize * scale}px "BiauKai", "標楷體", "Klee One"`;
+            this.ctx.textAlign = "center";
+            this.ctx.textBaseline = "middle";
+            this.ctx.fillText(obj.text, proj.x + w * 0.25, proj.y - poleH + 35 * scale);
+        }
+        else if (obj.type === 'fish') {
+            let jumpY = Math.abs(Math.sin(this.frameCount * 0.2)) * -60 * scale;
+            let drawY = proj.y + jumpY - h/2; 
+            
+            this.ctx.fillStyle = "#e67e22"; 
+            this.ctx.beginPath();
+            this.ctx.ellipse(proj.x, drawY, w/2, h/2, 0, 0, Math.PI*2);
+            this.ctx.fill();
+            this.ctx.beginPath();
+            this.ctx.moveTo(proj.x - w/2, drawY);
+            this.ctx.lineTo(proj.x - w/1.2, drawY - h/2);
+            this.ctx.lineTo(proj.x - w/1.2, drawY + h/2);
+            this.ctx.fill();
+        }
+        else if (obj.type === 'star') {
+            this.ctx.fillStyle = (this.frameCount % 10 < 5) ? "#FFFF00" : "#FFA500";
+            this.ctx.font = `${80 * scale}px sans-serif`;
+            this.ctx.textAlign = "center";
+            this.ctx.textBaseline = "bottom"; 
+            this.ctx.fillText("★", proj.x, proj.y + 10 * scale); 
+        }
+        else if (obj.type === 'propeller') {
+            const spin = this.frameCount * 0.5;
+            this.ctx.save();
+            this.ctx.translate(proj.x, proj.y - h); 
+            this.ctx.scale(scale, scale);
+            
+            this.ctx.fillStyle = "#e74c3c"; 
+            this.ctx.fillRect(-2, 0, 4, 30);
+            
+            this.ctx.rotate(spin); 
+            this.ctx.fillStyle = "#3498db";
+            this.ctx.fillRect(-30, -5, 60, 10);
+            
+            this.ctx.restore();
+        }
+    },
+
+    drawPlayer() {
+        const shadowLoc = this.project(this.player.x, 0, 0);
+        const shadowScaleBase = shadowLoc.scale;
+
+        const jumpHeight = Math.abs(this.player.y);
+        const shadowSizeFactor = Math.max(0.2, 1 - (jumpHeight / 200)); 
+        const shadowAlpha = Math.max(0.1, 0.5 - (jumpHeight / 300));
+
+        // 1. 繪製獨立影子
+        if (this.player.invincible <= 0 || this.frameCount % 6 >= 3) {
+             this.ctx.fillStyle = `rgba(0,0,0,${shadowAlpha})`;
+             this.ctx.beginPath();
+             this.ctx.ellipse(
+                 shadowLoc.x, 
+                 shadowLoc.y, 
+                 (this.player.width * 0.8) * shadowScaleBase * shadowSizeFactor, 
+                 (this.player.height * 0.05) * shadowScaleBase * shadowSizeFactor, 
+                 0, 0, Math.PI*2
+             );
+             this.ctx.fill();
+        }
+
+        // 2. 繪製企鵝
+        const pLoc = this.project(this.player.x, this.player.y, 0); 
+        const pX = pLoc.x;
+        const pY = pLoc.y;
+        
+        const scale = 1.0; 
+        const w = this.player.width * scale;
+        const h = this.player.height * scale;
+
+        if (this.player.invincible > 0 && this.frameCount % 6 < 3) return;
+
+        if (this.player.flying > 0) {
+            this.ctx.fillStyle = "#f1c40f";
+            this.ctx.fillRect(pX - 5, pY - h - 15, 10, 10); 
+            this.ctx.save();
+            this.ctx.translate(pX, pY - h - 15);
+            this.ctx.rotate(this.frameCount);
+            this.ctx.fillStyle = "#e74c3c";
+            this.ctx.fillRect(-35, -5, 70, 10);
+            this.ctx.restore();
+        }
+
+        const tilt = this.player.wobble;
+        const bounce = (this.player.flying > 0) ? 0 : Math.abs(Math.sin(this.frameCount * 0.8)) * 3;
+
+        this.ctx.save();
+        this.ctx.translate(pX, pY - h/2 - bounce);
+        this.ctx.rotate(tilt);
+
+        // --- 企鵝繪圖 ---
+        this.ctx.fillStyle = "#000";
+        this.ctx.beginPath();
+        this.ctx.ellipse(0, 0, w/2, h/2, 0, 0, Math.PI*2);
+        this.ctx.fill();
+
+        this.ctx.fillStyle = "#000"; 
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, h/2 - 8);
+        this.ctx.lineTo(-8, h/2 + 5);
+        this.ctx.lineTo(8, h/2 + 5);
+        this.ctx.fill();
+
+        const footOffset = Math.sin(this.frameCount * 0.8) * 5;
+        this.ctx.fillStyle = "#e67e22";
+        this.ctx.beginPath();
+        this.ctx.ellipse(-10, 20 + footOffset, 8, 5, 0, 0, Math.PI*2);
+        this.ctx.fill();
+        this.ctx.beginPath();
+        this.ctx.ellipse(10, 20 - footOffset, 8, 5, 0, 0, Math.PI*2);
+        this.ctx.fill();
+
+        this.ctx.fillStyle = "#e74c3c";
+        this.ctx.beginPath();
+        this.ctx.rect(-w/2 + 3, -10, w - 6, 6);
+        this.ctx.fill();
+        const knotWave = Math.sin(this.frameCount * 0.5) * 5;
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -5);
+        this.ctx.lineTo(10 + knotWave, 10); 
+        this.ctx.lineTo(3 + knotWave, 12);
+        this.ctx.lineTo(0, 0);
+        this.ctx.fill();
+        this.ctx.beginPath();
+        this.ctx.moveTo(0, -5);
+        this.ctx.lineTo(-7 + knotWave, 10); 
+        this.ctx.lineTo(-1 + knotWave, 12);
+        this.ctx.lineTo(0, 0);
+        this.ctx.fill();
+
+        this.ctx.fillStyle = "#000";
+        this.ctx.beginPath();
+        this.ctx.ellipse(-w/2 - 2, 5, 6, 15, 0.2, 0, Math.PI*2);
+        this.ctx.fill();
+        this.ctx.beginPath();
+        this.ctx.ellipse(w/2 + 2, 5, 6, 15, -0.2, 0, Math.PI*2);
+        this.ctx.fill();
+
+        this.ctx.restore();
+    },
+
+    unlockSpeech() {
+        if (!this.speechUnlocked && 'speechSynthesis' in window) {
+            const u = new SpeechSynthesisUtterance('');
+            window.speechSynthesis.speak(u);
+            this.speechUnlocked = true;
+        }
+    },
+
+    initAudio() {
+        if (!window.AudioContext && !window.webkitAudioContext) return;
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    },
+
+    playSound(type) {
+        if (!this.audioCtx) return;
+        if (this.audioCtx.state === 'suspended') this.audioCtx.resume();
+        
+        const osc = this.audioCtx.createOscillator();
+        const gain = this.audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(this.audioCtx.destination);
+        const now = this.audioCtx.currentTime;
+
+        if (type === 'good') { 
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(660, now);
+            osc.frequency.setValueAtTime(880, now + 0.1);
+            gain.gain.setValueAtTime(0.1, now);
+            gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+            osc.start(now); osc.stop(now + 0.3);
+        } 
+        else if (type === 'crash') { 
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, now);
+            osc.frequency.exponentialRampToValueAtTime(50, now + 0.2);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.2);
+            osc.start(now); osc.stop(now + 0.2);
+        }
+        else if (type === 'die') { 
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(300, now);
+            osc.frequency.linearRampToValueAtTime(50, now + 0.5);
+            gain.gain.setValueAtTime(0.2, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.5);
+            osc.start(now); osc.stop(now + 0.5);
+        }
+        else if (type === 'levelup' || type === 'powerup') { 
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(440, now);
+            osc.frequency.setValueAtTime(554, now + 0.1); 
+            osc.frequency.setValueAtTime(659, now + 0.2); 
+            osc.frequency.setValueAtTime(880, now + 0.3); 
+            gain.gain.setValueAtTime(0.05, now);
+            gain.gain.linearRampToValueAtTime(0, now + 0.5);
+            osc.start(now); osc.stop(now + 0.5);
+        }
+    }
+};
+
+window.onload = () => Game.init();
+</script>
+</body>
+</html>
