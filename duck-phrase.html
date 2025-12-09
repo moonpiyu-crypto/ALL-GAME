@@ -1,0 +1,919 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>打鴨子學詞語 (全像素+擊中提示版)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #222;
+            font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
+            overflow: hidden;
+            touch-action: none;
+            color: white;
+            user-select: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 800px;
+            aspect-ratio: 4/3;
+            max-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #3fbfff;
+            overflow: hidden;
+            border: 4px solid #000;
+        }
+
+        canvas {
+            display: block;
+            image-rendering: pixelated; 
+            image-rendering: crisp-edges;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+
+        .ui-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: rgba(0, 0, 0, 0.85); z-index: 20; transition: opacity 0.3s;
+        }
+
+        .hidden { display: none !important; }
+
+        h1 {
+            font-family: 'Press Start 2P', cursive;
+            font-size: 2rem; color: #ff9d00; text-shadow: 4px 4px #000;
+            margin-bottom: 30px; text-align: center; line-height: 1.5;
+        }
+        
+        .btn {
+            font-family: inherit;
+            padding: 15px 40px; font-size: 1.2rem; margin: 10px;
+            border: 4px solid #fff; border-radius: 4px;
+            cursor: pointer; font-weight: bold; 
+            min-width: 180px; text-align: center;
+            background-color: #e60012; color: #fff;
+            box-shadow: 0 6px 0 #8b0000;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .btn:active { transform: translateY(4px); box-shadow: 0 2px 0 #8b0000; }
+        .btn-secondary { background-color: #00b800; box-shadow: 0 6px 0 #006400; }
+        .btn-blue { background-color: #3fbfff; box-shadow: 0 6px 0 #00008b; }
+
+        .panel {
+            background: #fff; color: #333; padding: 25px; border-radius: 8px;
+            width: 90%; max-width: 500px; text-align: center; max-height: 85vh;
+            overflow-y: auto; display: flex; flex-direction: column; gap: 15px;
+            border: 4px solid #000;
+        }
+        textarea {
+            padding: 10px; font-size: 1.1rem; width: 100%; height: 70px;
+            border: 2px solid #333; border-radius: 4px; resize: none;
+            font-family: "BiauKai", "KaiTi", "DFKai-SB", serif;
+        }
+        .input-row {
+            display: flex; align-items: center; justify-content: flex-start; gap: 10px;
+            font-size: 1rem; font-weight: bold; text-align: left;
+        }
+        input[type="number"] {
+            padding: 5px; width: 80px; font-size: 1rem; border: 2px solid #333; border-radius: 4px;
+        }
+
+        #game-ui {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 12%;
+            pointer-events: none; z-index: 10;
+            background-color: #000;
+            border-top: 4px solid #2ecc71;
+            display: flex; align-items: center; justify-content: space-around;
+            font-family: 'Press Start 2P', cursive;
+            color: #2ecc71;
+            padding: 0 5px;
+        }
+
+        .hud-box { text-align: center; min-width: 50px; }
+        .hud-label { font-size: 0.5rem; margin-bottom: 5px; color: #fff; }
+        .hud-value { font-size: 0.9rem; }
+        
+        #target-display-area {
+            background: #222; border: 2px solid #fff; padding: 5px 10px;
+            border-radius: 4px; text-align: center;
+            min-width: 100px; flex-grow: 1; margin: 0 5px;
+        }
+        #current-target-char { 
+            color: #f1c40f; font-size: 1.4rem; 
+            font-family: "BiauKai", "KaiTi", "DFKai-SB", serif; 
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        #time-hud { color: #f1c40f; }
+
+        #toast-flash {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; opacity: 0; pointer-events: none; z-index: 15;
+            transition: opacity 0.1s;
+        }
+
+        #pause-btn {
+            position: absolute; top: 20px; right: 20px;
+            width: 40px; height: 40px;
+            background: rgba(0,0,0,0.5); color: white;
+            border: 2px solid white; border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            cursor: pointer; pointer-events: auto; z-index: 30;
+            font-weight: bold;
+        }
+
+        #qr-code-img { max-width: 150px; display: block; margin: 10px auto; border: 4px solid #000; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    <div id="toast-flash"></div>
+    
+    <div id="game-ui">
+        <div class="hud-box">
+            <div class="hud-label">R:</div>
+            <div class="hud-value" id="level-hud">1</div>
+        </div>
+        <div class="hud-box">
+            <div class="hud-label">SCORE</div>
+            <div class="hud-value" id="score-hud">0</div>
+        </div>
+        
+        <div id="target-display-area">
+            <div style="font-size:0.6rem; color:#aaa; margin-bottom:2px;">SHOOT</div>
+            <div id="current-target-char">?</div>
+        </div>
+
+        <div class="hud-box">
+            <div class="hud-label">TIME</div>
+            <div class="hud-value" id="time-hud">60</div>
+        </div>
+        
+        <div class="hud-box" style="color: #e74c3c">
+            <div class="hud-label">HIT</div>
+            <div class="hud-value" id="hit-hud">IIII</div>
+        </div>
+    </div>
+
+    <div id="pause-btn" onclick="Game.togglePause()">II</div>
+
+    <!-- Start Screen -->
+    <div id="start-screen" class="ui-screen">
+        <h1 style="color:#fff; text-shadow: 4px 4px #e60012;">打鴨子<br>DUCK HUNT<br><span style="font-size:1rem; font-family:'BiauKai', 'KaiTi', serif">詞語學習版</span></h1>
+        <button class="btn" onclick="Game.showTeacherPanel()">我是老師 (出題)</button>
+        <button class="btn btn-secondary" onclick="Game.showSetupScreen(false)">開始狩獵</button>
+        <div style="color:#aaa; font-size:0.7rem; margin-top:20px; font-family:sans-serif;">V7.0 Pixel Sky + Popup</div>
+    </div>
+
+    <!-- Setup Screen -->
+    <div id="setup-screen" class="ui-screen hidden">
+        <h1>準備狩獵</h1>
+        <div id="teacher-msg" style="display:none; color: #f1c40f; margin-bottom: 10px;">★ 老師已設定好題目！</div>
+        
+        <div class="panel" style="background:transparent; border:none; color:white;">
+            <div style="margin-bottom: 20px;">
+                <h3 style="color:#3fbfff; text-shadow:2px 2px #000;">選擇難度</h3>
+                <div style="display:flex; gap:10px; justify-content:center;">
+                    <label style="cursor:pointer;"><input type="radio" name="diff-select" value="easy"> 簡單 (慢)</label>
+                    <label style="cursor:pointer;"><input type="radio" name="diff-select" value="medium" checked> 普通 (中)</label>
+                    <label style="cursor:pointer;"><input type="radio" name="diff-select" value="hard"> 困難 (快)</label>
+                </div>
+            </div>
+
+            <button class="btn" onclick="Game.startGame()">START GAME</button>
+            <button class="btn btn-blue" onclick="Game.showMenu()">BACK</button>
+        </div>
+    </div>
+
+    <!-- Teacher Screen -->
+    <div id="teacher-screen" class="ui-screen hidden">
+        <div class="panel">
+            <h2>出題設定</h2>
+            <div style="text-align:left; font-size:0.9rem; font-weight:bold;">1. 目標詞語 (空格或逗號隔開)：</div>
+            <textarea id="target-input" placeholder="例如：蘋果, 香蕉, 鳳梨">蘋果, 香蕉, 鳳梨</textarea>
+            
+            <div style="text-align:left; font-size:0.9rem; font-weight:bold;">2. 干擾詞 (可選)：</div>
+            <textarea id="distractor-input" placeholder="例如：桌子, 椅子 (若不填，AI自動生成)"></textarea>
+            
+            <div class="input-row">
+                <label for="time-limit-input">3. 遊戲時間 (秒):</label>
+                <input type="number" id="time-limit-input" value="60" min="10" max="999">
+            </div>
+
+            <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:10px;">
+                <button class="btn" onclick="Game.saveSettings()">直接開始</button>
+                <button class="btn btn-secondary" onclick="Game.generateShareLink()">產生 QR Code</button>
+            </div>
+            
+            <div id="share-section" style="display:none; border-top:2px dashed #333; padding-top:10px; width:100%;">
+                <img id="qr-code-img" alt="QR" src="">
+                <input type="text" id="share-link-box" readonly onclick="this.select()" style="width:100%; padding:5px; border:1px solid #ccc;">
+            </div>
+            <button class="btn btn-blue" onclick="Game.showMenu()">返回</button>
+        </div>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="game-over-screen" class="ui-screen hidden">
+        <h1 style="color: #fff; background: #000; padding: 10px;">GAME OVER</h1>
+        <h2 id="final-score" style="color:#f1c40f;">SCORE: 0</h2>
+        <p id="end-msg" style="color: #fff; margin-bottom: 20px;"></p>
+        <button class="btn" onclick="Game.startGame()">RETRY</button>
+        <button class="btn btn-blue" onclick="Game.showMenu()">MENU</button>
+    </div>
+</div>
+
+<script>
+// --- Data ---
+const COMMON_CHARS = "的一是在不了有和人這中大為上個國我向要他時來用們生到作地於出就分對成會可主發年動同工也能下過子說產種面而方後多定行學法所民得經十三之進著等部度家更完樣今育提求治以流現五內聖";
+
+// --- Game Engine ---
+const Game = {
+    canvas: document.getElementById('gameCanvas'),
+    ctx: null,
+    width: 0, height: 0,
+    
+    state: 'start',
+    paused: false,
+    score: 0,
+    round: 1,
+    missesAllowed: 3, 
+    misses: 0,
+    
+    // Time Logic
+    gameDuration: 60,
+    timeLeft: 60,
+    
+    targetList: ['蘋果', '香蕉', '鳳梨'],
+    manualDistractors: [],
+    targetIndex: 0,
+    currentTarget: '蘋果',
+    
+    ducks: [],
+    dog: { state: 'hidden', y: 0, timer: 0 }, 
+    clouds: [],
+    grassHeight: 80,
+    
+    // Popup state
+    popup: null,
+    
+    speedMultiplier: 1.0,
+    lastFrameTime: 0,
+
+    init() {
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+        
+        const handleInput = (e) => {
+            if(this.state !== 'playing' || this.paused) return;
+            // Block input if popup is showing
+            if(this.popup) return;
+
+            e.preventDefault();
+            const rect = this.canvas.getBoundingClientRect();
+            let clientX, clientY;
+            if(e.changedTouches) {
+                clientX = e.changedTouches[0].clientX;
+                clientY = e.changedTouches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+            const scaleX = this.canvas.width / rect.width;
+            const scaleY = this.canvas.height / rect.height;
+            const x = (clientX - rect.left) * scaleX;
+            const y = (clientY - rect.top) * scaleY;
+            this.shoot(x, y);
+        };
+        this.canvas.addEventListener('mousedown', handleInput);
+        this.canvas.addEventListener('touchstart', handleInput, {passive: false});
+
+        this.initClouds();
+
+        if (this.checkURLParams()) this.showSetupScreen(true);
+        requestAnimationFrame((t) => this.loop(t));
+    },
+
+    resize() {
+        const container = document.getElementById('game-container');
+        this.width = container.clientWidth;
+        this.height = container.clientHeight;
+        this.canvas.width = this.width;
+        this.canvas.height = this.height;
+        this.grassHeight = this.height * 0.22; 
+        this.draw();
+    },
+
+    initClouds() {
+        this.clouds = [];
+        for(let i=0; i<3; i++) {
+            this.clouds.push({
+                x: Math.random() * 800,
+                y: Math.random() * 100 + 20,
+                speed: Math.random() * 0.5 + 0.2,
+                size: Math.random() * 0.5 + 0.8
+            });
+        }
+    },
+
+    parseInput(str) {
+        if (!str) return [];
+        return str.split(/[\s,，、\n]+/).filter(s => s.trim().length > 0);
+    },
+
+    checkURLParams() {
+        const p = new URLSearchParams(window.location.search);
+        const w = p.get('words');
+        const d = p.get('dist');
+        const t = p.get('time'); 
+        let f = false;
+        
+        if(w) { 
+            this.targetList = this.parseInput(decodeURIComponent(w)); 
+            document.getElementById('target-input').value = this.targetList.join(', '); 
+            f = true; 
+        }
+        if(d) {
+             this.manualDistractors = this.parseInput(decodeURIComponent(d));
+             document.getElementById('distractor-input').value = this.manualDistractors.join(', ');
+             f = true;
+        }
+        if(t) {
+            const timeVal = parseInt(t);
+            if(!isNaN(timeVal) && timeVal > 0) {
+                this.gameDuration = timeVal;
+                document.getElementById('time-limit-input').value = timeVal;
+            }
+        }
+        return f;
+    },
+
+    startGame() {
+        const diff = document.querySelector('input[name="diff-select"]:checked').value;
+        if(diff === 'easy') this.speedMultiplier = 0.5;
+        else if(diff === 'medium') this.speedMultiplier = 1.0;
+        else this.speedMultiplier = 1.6;
+
+        this.score = 0;
+        this.targetIndex = 0;
+        this.misses = 0;
+        this.round = 1;
+        this.timeLeft = this.gameDuration; 
+        this.state = 'playing';
+        this.paused = false;
+        this.popup = null; // Reset popup
+
+        this.loadRound();
+        this.toggleScreen('');
+        this.playSound('start');
+    },
+
+    loadRound() {
+        if(this.targetIndex >= this.targetList.length) this.targetIndex = 0;
+        this.currentTarget = this.targetList[this.targetIndex];
+        
+        this.ducks = [];
+        this.updateHUD();
+        this.showTitleCard(`Round ${this.round}`, `找: ${this.currentTarget}`);
+        this.speak(`請打，${this.currentTarget}`);
+        
+        setTimeout(() => this.spawnDucks(), 1000);
+    },
+
+    generateRandomWord(len) {
+        let res = "";
+        for(let i=0; i<len; i++) {
+            res += COMMON_CHARS[Math.floor(Math.random() * COMMON_CHARS.length)];
+        }
+        return res;
+    },
+
+    spawnDucks() {
+        let pool = [];
+        const targetLen = this.currentTarget.length;
+
+        if (this.manualDistractors.length > 0) {
+            pool = [...this.manualDistractors];
+        } 
+        
+        while(pool.length < 5) {
+            let fake = this.generateRandomWord(targetLen);
+            if(fake !== this.currentTarget && !pool.includes(fake)) pool.push(fake);
+        }
+
+        this.createDuck(this.currentTarget, true);
+        
+        const d1 = pool[Math.floor(Math.random()*pool.length)];
+        let d2 = pool[Math.floor(Math.random()*pool.length)];
+        while(d2 === d1) d2 = pool[Math.floor(Math.random()*pool.length)];
+        
+        this.createDuck(d1, false);
+        this.createDuck(d2, false);
+    },
+
+    createDuck(text, isTarget) {
+        const p = 4;
+        const duckW = 14 * p;
+        const duckH = 10 * p;
+        
+        const x = Math.random() * (this.width - duckW - 20) + 10;
+        const y = this.height - this.grassHeight + 10; 
+        
+        const dirX = (Math.random() > 0.5 ? 1 : -1) * (Math.random() * 2 + 1) * this.speedMultiplier; 
+        const dirY = -(Math.random() * 3 + 3) * this.speedMultiplier;
+        
+        const colorIndex = isTarget ? 0 : Math.floor(Math.random()*2)+1;
+        
+        this.ducks.push({
+            x: x, y: y,
+            vx: dirX, vy: dirY,
+            text: text, 
+            isTarget: isTarget,
+            state: 'fly',
+            timer: 0,
+            frame: 0,
+            colorType: colorIndex,
+            width: duckW, height: duckH
+        });
+    },
+
+    shoot(x, y) {
+        const flash = document.getElementById('toast-flash');
+        flash.style.opacity = 0.8;
+        setTimeout(() => flash.style.opacity = 0, 50);
+        this.playSound('shoot');
+
+        for(let i=this.ducks.length-1; i>=0; i--) {
+            const d = this.ducks[i];
+            if(d.state !== 'fly') continue;
+
+            if(x > d.x - 5 && x < d.x + d.width + 5 &&
+               y > d.y - 5 && y < d.y + d.height + 5) {
+                
+                if(d.isTarget) {
+                    d.state = 'shot';
+                    d.timer = 10;
+                    this.score += 500;
+                    this.playSound('hit');
+                    
+                    // --- NEW POPUP LOGIC ---
+                    // Speak again immediately
+                    this.speak(d.text);
+                    // Show popup for ~1.5 seconds (90 frames at 60fps)
+                    this.popup = { text: d.text, timer: 90 };
+                    
+                } else {
+                    d.state = 'shot';
+                    this.playSound('bad');
+                    this.triggerDogLaugh();
+                }
+                break;
+            }
+        }
+    },
+
+    triggerDogLaugh() {
+        this.state = 'dog_laughing';
+        this.dog.state = 'up';
+        this.dog.y = this.height - this.grassHeight;
+        this.dog.targetY = this.height - this.grassHeight - 80;
+        
+        this.misses++;
+        this.updateHUD();
+        
+        if(this.misses >= this.missesAllowed) {
+            setTimeout(() => this.gameOver("太多失誤"), 2500);
+        } else {
+            setTimeout(() => {
+                this.state = 'playing';
+                this.dog.state = 'hidden';
+            }, 2000);
+        }
+    },
+
+    nextRound(success) {
+        if(this.state !== 'playing') return;
+        if(success) {
+            this.targetIndex++;
+            this.round++;
+            this.updateHUD();
+            this.loadRound();
+        }
+    },
+
+    gameOver(reason) {
+        this.state = 'gameover';
+        document.getElementById('end-msg').innerText = reason;
+        document.getElementById('final-score').innerText = `SCORE: ${this.score}`;
+        this.toggleScreen('game-over-screen');
+        this.playSound('gameover');
+    },
+
+    update(dt) {
+        this.clouds.forEach(c => {
+            c.x += c.speed;
+            if(c.x > this.width + 50) c.x = -100;
+        });
+
+        // POPUP BLOCKING
+        if(this.popup) {
+            this.popup.timer--;
+            if(this.popup.timer <= 0) {
+                this.popup = null; // Clear popup
+                this.nextRound(true); // Proceed
+            }
+            return; // Pause other updates
+        }
+
+        if(this.state === 'playing') {
+            // Timer Logic
+            this.timeLeft -= dt / 1000;
+            if(this.timeLeft <= 0) {
+                this.timeLeft = 0;
+                this.gameOver("時間到！");
+            }
+            this.updateHUD(); 
+
+            this.ducks.forEach(d => {
+                if(d.state === 'fly') {
+                    d.x += d.vx;
+                    d.y += d.vy;
+                    
+                    if(d.x <= 0 || d.x + d.width >= this.width) d.vx *= -1;
+                    if(d.y <= 0) d.vy *= -1; 
+                    
+                    const floorY = this.height - this.grassHeight + 20;
+                    if(d.vy > 0 && d.y + d.height >= floorY) {
+                         d.vy *= -1; 
+                    }
+                    d.frame += 0.15;
+                } else if (d.state === 'shot') {
+                    d.timer--;
+                    if(d.timer <= 0) d.state = 'dead';
+                } else if (d.state === 'dead') {
+                    d.y += 8;
+                    if(d.y > this.height + d.height) {
+                        d.state = 'gone';
+                        this.playSound('land');
+                    }
+                }
+            });
+        } else if (this.state === 'dog_laughing') {
+            if(this.dog.state === 'up') {
+                this.dog.y -= 5;
+                if(this.dog.y <= this.dog.targetY) {
+                    this.dog.y = this.dog.targetY;
+                    this.dog.state = 'laugh';
+                    this.dog.timer = 60;
+                    this.playSound('laugh');
+                }
+            } else if (this.dog.state === 'laugh') {
+                this.dog.timer--;
+                if(this.dog.timer <= 0) this.dog.state = 'down';
+            } else if (this.dog.state === 'down') {
+                this.dog.y += 5;
+            }
+        }
+    },
+
+    drawPixelCircle(cx, cy, r, color) {
+        const ctx = this.ctx;
+        const p = 4; 
+        ctx.fillStyle = color;
+        for(let y = -r; y <= r; y+=p) {
+            for(let x = -r; x <= r; x+=p) {
+                if(x*x + y*y < r*r) {
+                     ctx.fillRect(cx + x, cy + y, p, p);
+                }
+            }
+        }
+    },
+
+    draw() {
+        const ctx = this.ctx;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        const p = 4;
+        
+        ctx.fillStyle = '#3fbfff';
+        ctx.fillRect(0, 0, w, h);
+
+        // PIXEL SUN
+        this.drawPixelCircle(80, 80, 32, '#f1c40f');
+        ctx.fillStyle = '#f1c40f';
+        const rayDist = 48;
+        const raySize = 8;
+        ctx.fillRect(80 + rayDist, 80, raySize, raySize);
+        ctx.fillRect(80 - rayDist - raySize, 80, raySize, raySize);
+        ctx.fillRect(80, 80 + rayDist, raySize, raySize);
+        ctx.fillRect(80, 80 - rayDist - raySize, raySize, raySize);
+        const diag = Math.floor(rayDist * 0.7);
+        ctx.fillRect(80 + diag, 80 + diag, raySize, raySize);
+        ctx.fillRect(80 - diag - raySize, 80 + diag, raySize, raySize);
+        ctx.fillRect(80 + diag, 80 - diag - raySize, raySize, raySize);
+        ctx.fillRect(80 - diag - raySize, 80 - diag - raySize, raySize, raySize);
+
+        // PIXEL CLOUDS
+        this.clouds.forEach(c => {
+            const s = c.size;
+            this.drawPixelCircle(c.x, c.y, 24 * s, '#ffffff');
+            this.drawPixelCircle(c.x + 30*s, c.y - 10*s, 28 * s, '#ffffff');
+            this.drawPixelCircle(c.x + 60*s, c.y, 24 * s, '#ffffff');
+        });
+
+        this.ducks.forEach(d => {
+            if(d.state !== 'gone') this.drawDuck(d);
+        });
+
+        if(this.dog.state !== 'hidden') {
+            this.drawDog(this.dog.y);
+        }
+
+        const grassY = h - this.grassHeight;
+        ctx.fillStyle = '#64e064';
+        ctx.fillRect(0, grassY, w, this.grassHeight);
+        
+        ctx.fillStyle = '#4cc74c';
+        for(let ix=0; ix<w; ix+=4*p) {
+            for(let iy=grassY+p; iy<h; iy+=4*p) {
+                if(Math.floor((ix/ (4*p) + iy/ (4*p))) % 2 === 0) ctx.fillRect(ix, iy, 2*p, 2*p);
+            }
+        }
+
+        ctx.fillStyle = '#2ecc71'; ctx.fillRect(0, grassY, w, p);
+        ctx.fillStyle = '#006400'; ctx.fillRect(0, grassY+p, w, p);
+
+        this.drawTree(30, grassY + 20, 0.6);
+        this.drawTree(w - 80, grassY, 1.0);
+
+        // --- DRAW POPUP OVERLAY ---
+        if(this.popup) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, w, h);
+            
+            ctx.save();
+            ctx.translate(w/2, h/2);
+            // Glow
+            ctx.shadowColor = "#f1c40f"; ctx.shadowBlur = 30;
+            
+            ctx.fillStyle = "#fff"; 
+            ctx.strokeStyle = "#000"; 
+            ctx.lineWidth = 10;
+            
+            // Adjust size based on length
+            let fontSize = 120;
+            if(this.popup.text.length > 2) fontSize = 80;
+            
+            ctx.font = `bold ${fontSize}px "BiauKai", "KaiTi", serif`;
+            ctx.textAlign = "center"; 
+            ctx.textBaseline = "middle";
+            
+            ctx.strokeText(this.popup.text, 0, 0);
+            ctx.fillText(this.popup.text, 0, 0);
+            ctx.restore();
+        }
+    },
+
+    drawDuck(d) {
+        const ctx = this.ctx;
+        ctx.save();
+        ctx.translate(d.x, d.y);
+        
+        if(d.vx < 0) {
+            ctx.translate(d.width, 0);
+            ctx.scale(-1, 1);
+        }
+
+        const p = 4;
+        let mainColor = '#5e3f28'; let headColor = '#1d7e3e'; let wingColor = '#4a3121';
+        let beakColor = '#f39c12'; let collarColor = '#ffffff';
+
+        if(d.colorType === 1) { mainColor = '#3498db'; headColor='#2980b9'; wingColor = '#1f618d'; } 
+        if(d.colorType === 2) { mainColor = '#e74c3c'; headColor='#c0392b'; wingColor = '#922b21'; } 
+        if(d.isTarget) { mainColor = '#f1c40f'; headColor='#d4ac0d'; wingColor = '#b7950b'; beakColor='#e67e22'; } 
+
+        if(d.state === 'fly') {
+            ctx.fillStyle = mainColor; ctx.fillRect(2*p, 5*p, 8*p, 4*p);
+            ctx.fillStyle = collarColor; ctx.fillRect(7*p, 4*p, 3*p, 1*p);
+            ctx.fillStyle = headColor; ctx.fillRect(7*p, 1*p, 4*p, 3*p);
+            ctx.fillStyle = '#000'; ctx.fillRect(9*p, 2*p, 1*p, 1*p);
+            ctx.fillStyle = '#fff'; ctx.fillRect(9*p+1, 2*p+1, 1, 1); 
+            ctx.fillStyle = beakColor; ctx.fillRect(11*p, 2*p, 3*p, 2*p);
+            ctx.fillStyle = mainColor; ctx.fillRect(0, 6*p, 2*p, 2*p);
+
+            const flap = Math.sin(d.frame) > 0;
+            ctx.fillStyle = wingColor;
+            if(flap) { ctx.fillRect(3*p, 2*p, 5*p, 3*p); ctx.fillRect(4*p, 1*p, 3*p, 1*p); } 
+            else { ctx.fillRect(3*p, 6*p, 5*p, 3*p); ctx.fillRect(4*p, 9*p, 3*p, 1*p); }
+        } else if (d.state === 'shot') {
+            ctx.fillStyle = mainColor; ctx.fillRect(3*p, 4*p, 6*p, 6*p); 
+            ctx.fillStyle = headColor; ctx.fillRect(4*p, 1*p, 4*p, 4*p); 
+            ctx.fillStyle = beakColor; ctx.fillRect(5*p, 3*p, 2*p, 1*p); 
+            ctx.fillStyle = '#fff'; ctx.fillRect(4*p, 2*p, 2*p, 2*p); ctx.fillRect(7*p, 2*p, 2*p, 2*p);
+            ctx.fillStyle = '#000'; ctx.fillRect(5*p, 3*p, 1*p, 1*p); ctx.fillRect(8*p, 3*p, 1*p, 1*p);
+        } else if (d.state === 'dead') {
+            ctx.scale(1, -1); ctx.translate(0, -d.height);
+            ctx.fillStyle = mainColor; ctx.fillRect(3*p, 2*p, 6*p, 8*p);
+            ctx.fillStyle = headColor; ctx.fillRect(4*p, 10*p, 4*p, 3*p);
+            ctx.fillStyle = beakColor; ctx.fillRect(3*p, 0, 2*p, 2*p); ctx.fillRect(7*p, 0, 2*p, 2*p);
+        }
+
+        ctx.restore();
+        
+        ctx.save();
+        ctx.translate(d.x + d.width/2, d.y + d.height + 25); 
+        ctx.fillStyle = '#fff'; ctx.strokeStyle = '#000'; ctx.lineWidth = 4;
+        
+        let fontSize = 32;
+        if(d.text.length === 2) fontSize = 26;
+        else if(d.text.length >= 3) fontSize = 20;
+        
+        ctx.font = `bold ${fontSize}px 'BiauKai', 'KaiTi', 'DFKai-SB', 'Adobe Kaiti Std', serif`; 
+        ctx.textAlign = 'center';
+        ctx.strokeText(d.text, 0, 0); ctx.fillText(d.text, 0, 0);
+        ctx.restore();
+    },
+
+    drawDog(y) {
+        const ctx = this.ctx;
+        const cx = this.canvas.width / 2;
+        const p = 4; 
+        const dogW = 20*p;
+        ctx.save();
+        ctx.translate(cx - dogW/2, y); 
+
+        const furDark = '#8e5e3c'; const furLight = '#bc8a5f';
+        const noseColor = '#000'; const eyeWhite = '#fff';
+
+        ctx.fillStyle = furDark; ctx.fillRect(3*p, 4*p, 14*p, 12*p);
+        ctx.fillStyle = furLight; ctx.fillRect(5*p, 8*p, 10*p, 8*p);
+        ctx.fillStyle = furDark; ctx.fillRect(0, 2*p, 4*p, 6*p); ctx.fillRect(16*p, 2*p, 4*p, 6*p);
+        ctx.fillStyle = noseColor; ctx.fillRect(8*p, 9*p, 4*p, 3*p);
+
+        const laughFrame = Math.floor(Date.now() / 150) % 2;
+        if(this.dog.state === 'laugh') {
+            ctx.fillStyle = noseColor; ctx.fillRect(5*p, 6*p, 4*p, 2*p); ctx.fillRect(11*p, 6*p, 4*p, 2*p);
+            ctx.fillStyle = '#000';
+            if(laughFrame===0) {
+                ctx.fillRect(6*p, 13*p, 8*p, 3*p); ctx.fillStyle = '#c0392b'; ctx.fillRect(8*p, 15*p, 4*p, 1*p);
+            } else {
+                ctx.fillRect(6*p, 13*p, 8*p, 1*p); ctx.fillRect(5*p, 12*p, 1*p, 1*p); ctx.fillRect(14*p, 12*p, 1*p, 1*p);
+            }
+            ctx.save();
+            ctx.translate(dogW + 10, 0);
+            ctx.fillStyle = 'white'; ctx.strokeStyle = 'black'; ctx.lineWidth = 3;
+            ctx.font = "bold 20px 'Press Start 2P'";
+            ctx.strokeText("HA HA", 0, 0); ctx.fillText("HA HA", 0, 0);
+            ctx.restore();
+        } else {
+            ctx.fillStyle = eyeWhite; ctx.fillRect(5*p, 5*p, 4*p, 3*p); ctx.fillRect(11*p, 5*p, 4*p, 3*p);
+            ctx.fillStyle = noseColor; ctx.fillRect(7*p, 6*p, 2*p, 2*p); ctx.fillRect(13*p, 6*p, 2*p, 2*p);
+        }
+        ctx.fillStyle = furDark; ctx.fillRect(5*p, 16*p, 4*p, 3*p); ctx.fillRect(11*p, 16*p, 4*p, 3*p);
+        ctx.restore();
+    },
+
+    drawTree(x, y, scale = 1.0) {
+        const ctx = this.ctx;
+        const p = 4 * scale;
+        
+        ctx.fillStyle = '#835C3B'; ctx.fillRect(x + 4*p, y - 12*p, 4*p, 12*p);
+        ctx.fillStyle = '#6d4c30'; ctx.fillRect(x + 5*p, y - 10*p, 1*p, 2*p); ctx.fillRect(x + 7*p, y - 6*p, 1*p, 3*p);
+
+        ctx.fillStyle = '#2ecc71'; 
+        ctx.fillRect(x, y - 24*p, 12*p, 12*p); 
+        ctx.fillRect(x - 2*p, y - 20*p, 2*p, 8*p); ctx.fillRect(x + 12*p, y - 20*p, 2*p, 8*p);
+        ctx.fillRect(x + 2*p, y - 26*p, 8*p, 2*p);
+
+        ctx.fillStyle = '#4ce08e';
+        ctx.fillRect(x + 2*p, y - 22*p, 2*p, 2*p); ctx.fillRect(x + 8*p, y - 22*p, 2*p, 2*p); ctx.fillRect(x + 5*p, y - 16*p, 2*p, 2*p);
+    },
+
+    loop(t) {
+        const dt = t - this.lastFrameTime;
+        this.lastFrameTime = t;
+        if(!this.paused) { this.update(dt); this.draw(); }
+        requestAnimationFrame((time) => this.loop(time));
+    },
+
+    updateHUD() {
+        // Handle potentially long target text in HUD
+        const target = this.currentTarget;
+        const el = document.getElementById('current-target-char');
+        el.innerText = target;
+        if(target.length > 2) el.style.fontSize = '1.2rem';
+        else el.style.fontSize = '1.4rem';
+
+        document.getElementById('score-hud').innerText = this.score;
+        document.getElementById('level-hud').innerText = this.round;
+        document.getElementById('time-hud').innerText = Math.ceil(this.timeLeft);
+        
+        let hitsStr = "🦆".repeat(Math.max(0, 3 - this.misses));
+        document.getElementById('hit-hud').innerText = hitsStr;
+    },
+
+    showTitleCard(title, sub) {
+        this.paused = true;
+        const el = document.createElement('div');
+        el.style = "position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); background:black; color:white; padding:20px; text-align:center; font-family:'Press Start 2P'; z-index:50; border:2px solid white;";
+        el.innerHTML = `<div style='color:#3fbfff; margin-bottom:10px;'>${title}</div><div style='font-family:"BiauKai", serif'>${sub}</div>`;
+        document.getElementById('game-container').appendChild(el);
+        setTimeout(() => { el.remove(); this.paused = false; }, 2000);
+    },
+
+    speak(t) { 
+        if('speechSynthesis' in window) { 
+            window.speechSynthesis.cancel(); 
+            const u=new SpeechSynthesisUtterance(t); u.lang='zh-TW'; window.speechSynthesis.speak(u); 
+        }
+    },
+    
+    playSound(type) {
+        if(!window.AudioContext && !window.webkitAudioContext) return;
+        const ctx = new (window.AudioContext||window.webkitAudioContext)();
+        const o=ctx.createOscillator(); const g=ctx.createGain(); o.connect(g); g.connect(ctx.destination);
+        const now=ctx.currentTime;
+        if(type==='shoot') {
+            o.type='square'; o.freq=100; o.frequency.exponentialRampToValueAtTime(0.01, now+0.1);
+            g.gain.setValueAtTime(0.3,now); g.gain.linearRampToValueAtTime(0,now+0.1); o.start(now); o.stop(now+0.1);
+        } else if(type==='hit') {
+            o.type='square'; o.frequency.setValueAtTime(800, now); o.frequency.linearRampToValueAtTime(1200, now+0.1);
+            g.gain.setValueAtTime(0.1,now); g.gain.linearRampToValueAtTime(0,now+0.1); o.start(now); o.stop(now+0.1);
+        } else if(type==='laugh') {
+            o.type='triangle'; o.frequency.setValueAtTime(300, now); o.frequency.setValueAtTime(400, now+0.1); o.frequency.setValueAtTime(300, now+0.2);
+            g.gain.value=0.2; o.start(now); o.stop(now+0.3);
+        } else if(type==='start') {
+            o.type='square'; o.frequency.setValueAtTime(440, now); o.frequency.setValueAtTime(880, now+0.2);
+            g.gain.linearRampToValueAtTime(0, now+0.5); o.start(now); o.stop(now+0.5);
+        } else if(type==='bad') {
+            o.type='sawtooth'; o.frequency.setValueAtTime(150, now); o.frequency.linearRampToValueAtTime(100, now+0.3);
+            g.gain.linearRampToValueAtTime(0, now+0.3); o.start(now); o.stop(now+0.3);
+        } else if(type==='land') {
+             o.type='square'; o.frequency.setValueAtTime(100, now); o.frequency.linearRampToValueAtTime(50, now+0.1);
+             g.gain.linearRampToValueAtTime(0, now+0.1); o.start(now); o.stop(now+0.1);
+        }
+    },
+
+    togglePause() { if(this.state!=='playing') return; this.paused=!this.paused; },
+    showSetupScreen(s) { this.toggleScreen('setup-screen'); document.getElementById('teacher-msg').style.display=s?'block':'none'; },
+    showTeacherPanel() { this.toggleScreen('teacher-screen'); },
+    showMenu() { this.toggleScreen('start-screen'); },
+    toggleScreen(id) { 
+        ['start-screen','setup-screen','teacher-screen','game-over-screen'].forEach(s=>document.getElementById(s).classList.add('hidden')); 
+        if(id) document.getElementById(id).classList.remove('hidden'); 
+        document.getElementById('game-ui').style.display = (id === '') ? 'flex' : 'none';
+        document.getElementById('pause-btn').style.display = (id === '') ? 'flex' : 'none';
+    },
+    saveSettings() { 
+        const t=document.getElementById('target-input').value; 
+        const d=document.getElementById('distractor-input').value;
+        const tm = document.getElementById('time-limit-input').value;
+        const parsedT = this.parseInput(t);
+        const parsedD = this.parseInput(d);
+        if(parsedT.length > 0) { 
+            this.targetList = parsedT; 
+            this.manualDistractors = parsedD;
+            this.gameDuration = parseInt(tm) || 60;
+            this.showSetupScreen(false); 
+        } else alert("請輸入題目");
+    },
+    generateShareLink() {
+        const t=document.getElementById('target-input').value.trim();
+        const d=document.getElementById('distractor-input').value.trim();
+        const tm = document.getElementById('time-limit-input').value.trim();
+        if(!t) return alert("請輸入文字");
+        let u=`${window.location.origin}${window.location.pathname}?words=${encodeURIComponent(t)}`;
+        if(d) u+=`&dist=${encodeURIComponent(d)}`;
+        if(tm) u+=`&time=${encodeURIComponent(tm)}`;
+        document.getElementById('share-section').style.display='block';
+        document.getElementById('share-link-box').value=u;
+        document.getElementById('qr-code-img').src=`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(u)}`;
+    }
+};
+
+window.onload = () => Game.init();
+</script>
+</body>
+</html>
