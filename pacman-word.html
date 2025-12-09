@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>皮卡丘迷宮 (道具+大字完整版)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        * { 
+            box-sizing: border-box; 
+            -webkit-user-select: none; user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            margin: 0; padding: 0;
+            background-color: #1a1a1a;
+            font-family: "Klee One", serif;
+            overflow: hidden; touch-action: none;
+            color: white;
+            display: flex; justify-content: center; align-items: center;
+            height: 100vh; height: 100dvh; width: 100vw;
+        }
+
+        #game-container {
+            position: relative; width: 100%; height: 100%;
+            max-width: 800px;
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-top: env(safe-area-inset-top);
+            display: flex; justify-content: center; align-items: center;
+            background: #000;
+        }
+
+        canvas {
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            background: #000; display: block;
+            image-rendering: pixelated; border-radius: 4px;
+        }
+
+        .ui-screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            background: rgba(0, 0, 0, 0.92); z-index: 20; transition: opacity 0.3s;
+        }
+
+        .hidden { display: none !important; }
+
+        h1 {
+            font-size: 2.2rem; color: #f1c40f; text-shadow: 4px 4px #c0392b;
+            margin-bottom: 20px; text-align: center; line-height: 1.2;
+        }
+
+        .btn {
+            padding: 12px 30px; font-size: 1.2rem; margin: 8px;
+            border: 3px solid rgba(255,255,255,0.2); border-radius: 12px;
+            cursor: pointer; font-weight: bold; font-family: inherit;
+            min-width: 160px; text-align: center;
+            background-color: #f1c40f; color: #2c3e50;
+            transition: transform 0.1s;
+        }
+        .btn:active { transform: scale(0.95); }
+        .btn-secondary { background-color: #3498db; color: white; }
+        .btn-green { background-color: #2ecc71; color: white; }
+
+        .selector-group {
+            background: rgba(255,255,255,0.1); padding: 10px; border-radius: 10px;
+            margin: 5px 0; text-align: center; width: 90%; max-width: 600px;
+        }
+        .selector-label { color: #f1c40f; display: block; margin-bottom: 5px; font-weight: bold;}
+        .radio-group { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
+        .radio-label {
+            background: #ecf0f1; color: #2c3e50; padding: 6px 14px;
+            border-radius: 20px; cursor: pointer; border: 2px solid transparent;
+            font-size: 0.9rem;
+        }
+        input[type="radio"]:checked + .radio-label {
+            background: #f1c40f; color: #c0392b; border-color: #c0392b; font-weight: bold;
+        }
+        input[type="radio"] { display: none; }
+
+        .panel {
+            background: white; color: #333; padding: 20px; border-radius: 15px;
+            width: 90%; max-width: 500px; text-align: center; max-height: 80vh;
+            overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
+        }
+        textarea, input[type="number"] {
+            padding: 10px; font-size: 1.1rem; width: 100%;
+            border: 2px solid #ccc; border-radius: 10px; resize: none;
+            -webkit-user-select: text; user-select: text;
+        }
+        
+        #game-ui {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 10;
+        }
+        .hud-panel {
+            position: absolute; top: 10px; display: flex; align-items: center;
+            font-size: 1.2rem; font-weight: bold; text-shadow: 2px 2px 0 #000;
+            pointer-events: auto;
+        }
+        #score-board { left: 15px; color: #fff; }
+        #timer-board { 
+            right: 15px; color: #fff; font-family: monospace; font-size: 1.4rem;
+            background: rgba(0,0,0,0.5); padding: 2px 8px; border-radius: 5px;
+        }
+        #target-display { 
+            left: 50%; transform: translateX(-50%); 
+            background: rgba(0,0,0,0.6); border: 2px solid #3498db;
+            padding: 5px 15px; border-radius: 20px; color: #fff;
+            white-space: nowrap;
+        }
+        #lives-board { 
+            position: absolute; top: 50px; left: 15px; 
+            color: #e74c3c; font-size: 1.2rem;
+        }
+        #mistake-board {
+            position: absolute; top: 50px; right: 15px; font-size: 1rem;
+            color: #f39c12; text-shadow: 1px 1px 0 #000;
+        }
+        #level-progress { font-size: 0.8rem; color: #aaa; margin-top: 2px; text-align: center;}
+
+        #pause-btn {
+            position: absolute; top: 90px; left: 15px; width: 40px; height: 40px;
+            background: rgba(255,255,255,0.2); border: 2px solid white; border-radius: 50%;
+            color: white; font-size: 1rem; display: flex; justify-content: center;
+            align-items: center; cursor: pointer; pointer-events: auto; z-index: 30;
+        }
+        #pause-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); display: none; justify-content: center;
+            align-items: center; z-index: 25; color: white; font-size: 3rem; font-weight: bold;
+        }
+        
+        /* PowerUp Indicator */
+        #buff-indicator {
+            position: absolute; bottom: 200px; right: 20px;
+            display: flex; flex-direction: column; gap: 5px; align-items: flex-end;
+        }
+        .buff-icon { font-size: 1.5rem; text-shadow: 0 0 5px white; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% {transform:scale(1);} 50% {transform:scale(1.2);} 100% {transform:scale(1);} }
+
+        /* Center Popup Style - 大字提示 */
+        #center-popup {
+            position: absolute; top: 50%; left: 50%; 
+            transform: translate(-50%, -50%) scale(0);
+            background: rgba(0,0,0,0.85); 
+            border: 5px solid #f1c40f; 
+            border-radius: 50%; 
+            width: 140px; height: 140px;
+            color: #f1c40f; 
+            font-size: 4.5rem; 
+            font-weight: bold;
+            z-index: 100; 
+            pointer-events: none; 
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 0 50px rgba(241, 196, 15, 0.8);
+            text-shadow: 2px 2px 0 #000;
+        }
+        .popup-visible { transform: translate(-50%, -50%) scale(1) !important; }
+
+        #d-pad {
+            position: absolute; bottom: 20px; left: 20px; 
+            width: 160px; height: 160px; 
+            z-index: 50; display: grid; grid-template-columns: 1fr 1fr 1fr;
+            grid-template-rows: 1fr 1fr 1fr; pointer-events: auto; opacity: 0.7;
+            touch-action: none;
+        }
+        @media (min-width: 600px) and (orientation: landscape) {
+            #d-pad { bottom: 10px; right: 20px; left: auto; }
+        }
+        .d-btn {
+            background: rgba(255, 255, 255, 0.15); border: 1px solid rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(2px); display: flex; justify-content: center; align-items: center; 
+            font-size: 1.5rem; color: white; cursor: pointer; touch-action: none; user-select: none;
+        }
+        .d-btn:active { background: rgba(241, 196, 15, 0.6); transform: scale(0.95); }
+        #d-up { grid-column: 2; grid-row: 1; border-radius: 15px 15px 0 0; }
+        #d-left { grid-column: 1; grid-row: 2; border-radius: 15px 0 0 15px; }
+        #d-right { grid-column: 3; grid-row: 2; border-radius: 0 15px 15px 0; }
+        #d-down { grid-column: 2; grid-row: 3; border-radius: 0 0 15px 15px; }
+        
+        #qr-code-img { max-width: 120px; display: block; margin: 10px auto; border: 5px solid white; }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+    
+    <div id="game-ui">
+        <div id="score-board" class="hud-panel">SCORE: 0</div>
+        <div id="timer-board" class="hud-panel">120</div>
+        <div id="target-display" class="hud-panel">
+            找: <span id="current-target-char" style="color:#f1c40f; font-size:1.4em; font-weight:bold; margin-left:5px;">?</span>
+            <div id="level-progress">0 / 5</div>
+        </div>
+        <div id="lives-board" class="hud-panel">❤️❤️❤️</div>
+        <div id="mistake-board">干擾: 0/3</div>
+        
+        <div id="buff-indicator"></div>
+        <div id="center-popup"></div>
+
+        <div id="pause-overlay">PAUSED</div>
+        <div id="pause-btn" onclick="Game.togglePause()">||</div>
+
+        <div id="d-pad">
+            <div id="d-up" class="d-btn">▲</div>
+            <div id="d-left" class="d-btn">◀</div>
+            <div id="d-center" style="grid-column: 2; grid-row: 2;"></div>
+            <div id="d-right" class="d-btn">▶</div>
+            <div id="d-down" class="d-btn">▼</div>
+        </div>
+    </div>
+
+    <!-- Screens -->
+    <div id="start-screen" class="ui-screen">
+        <h1>皮卡丘<br>迷宮接字樂</h1>
+        <button class="btn" onclick="Game.showTeacherPanel()">我是老師 (出題)</button>
+        <button class="btn btn-secondary" onclick="Game.showSetupScreen(false)">開始遊戲</button>
+        <div style="color:#aaa; font-size:0.8rem; margin-top:20px; opacity: 0.7;">V11.2 完整版 (道具+大字)</div>
+    </div>
+
+    <div id="setup-screen" class="ui-screen hidden">
+        <h1>準備冒險</h1>
+        <div id="teacher-msg" style="display:none; color: #f1c40f; margin-bottom: 10px; font-weight:bold;">★ 老師已設定好題目！</div>
+        
+        <div class="selector-group">
+            <span class="selector-label">角色</span>
+            <div class="radio-group">
+                <label><input type="radio" name="char-select" value="pikachu" checked> <span class="radio-label">皮卡丘</span></label>
+                <label><input type="radio" name="char-select" value="superman"> <span class="radio-label">超人</span></label>
+                <label><input type="radio" name="char-select" value="ironman"> <span class="radio-label">鋼鐵人</span></label>
+                <label><input type="radio" name="char-select" value="mario"> <span class="radio-label">瑪利歐</span></label>
+            </div>
+        </div>
+
+        <div class="selector-group">
+            <span class="selector-label">難度 (速度)</span>
+            <div class="radio-group">
+                <label><input type="radio" name="diff-select" value="easy"> <span class="radio-label">簡單</span></label>
+                <label><input type="radio" name="diff-select" value="medium" checked> <span class="radio-label">普通</span></label>
+                <label><input type="radio" name="diff-select" value="hard"> <span class="radio-label">困難</span></label>
+            </div>
+        </div>
+
+        <button class="btn" style="margin-top: 20px;" onclick="Game.startFromSetup()">GO! 出發</button>
+        <button class="btn btn-secondary" onclick="Game.showMenu()">返回</button>
+    </div>
+
+    <div id="teacher-screen" class="ui-screen hidden">
+        <div class="panel">
+            <h2>出題設定</h2>
+            
+            <div style="text-align:left; font-size:0.9rem; font-weight:bold;">1. 遊戲限時 (秒)：</div>
+            <input type="number" id="time-limit-input" value="120" min="30" max="600">
+            
+            <div style="text-align:left; font-size:0.9rem; font-weight:bold; margin-top:10px;">2. 目標文字 (每關輪流一個字)：</div>
+            <textarea id="target-input" placeholder="例如：愛我人日月星">愛我人</textarea>
+            
+            <div style="text-align:left; font-size:0.9rem; font-weight:bold;">3. 自訂干擾字 (每關配5個)：</div>
+            <textarea id="distractor-input" placeholder="例如：犬太天 (AI會自動補足5個)"></textarea>
+            
+            <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:10px;">
+                <button class="btn" onclick="Game.saveSettings()">儲存並返回</button>
+                <button class="btn btn-green" onclick="Game.generateShareLink()">產生 QR Code</button>
+            </div>
+            
+            <div id="share-section" style="display:none; border-top:1px dashed #eee; padding-top:10px; width:100%;">
+                <img id="qr-code-img" alt="QR" src="" onerror="this.style.display='none';alert('QR Code 生成失敗');">
+                <input type="text" id="share-link-box" readonly onclick="this.select(); document.execCommand('copy');" style="width:100%; padding:8px;">
+            </div>
+            <button class="btn btn-secondary" onclick="Game.showMenu()">返回</button>
+        </div>
+    </div>
+
+    <div id="game-over-screen" class="ui-screen hidden">
+        <h1 style="color: #e74c3c;">遊戲結束</h1>
+        <h2 id="final-score">得分: 0</h2>
+        <p id="death-reason" style="color: #aaa; margin-bottom: 20px; font-size: 1.2rem;"></p>
+        <button class="btn" onclick="Game.restart()">再玩一次</button>
+        <button class="btn btn-secondary" onclick="Game.showMenu()">回主選單</button>
+    </div>
+</div>
+
+<script>
+const CONFUSING_DB = {
+    '人': ['入', '八', '大'], '入': ['人', '八'], '大': ['太', '犬', '天'], 
+    '天': ['夫', '大', '夭'], '日': ['曰', '目', '白'], '木': ['本', '禾', '术'], 
+    '我': ['找', '錢', '淺'], '愛': ['受', '暖', '憂'], '右': ['石', '左', '古'], 
+    '左': ['右', '在'], '因': ['困', '回'], '買': ['賣', '貝']
+};
+const COMMON_CHARS = "的一是在不了有和人這中大為上個國我向要他時來用們生到作地於出就分對成會可主發年動同工也能下過子說產種面而方後多定行學法所民得經十三之進著等部度家更完樣今育提求治以流現五內聖";
+
+// 1=Wall, 0=Path, 9=GhostBox
+const MAZE_MAP = [
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+    [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
+    [1,0,1,1,1,0,1,1,0,1,0,1,1,0,1,1,1,0,1],
+    [1,0,1,1,1,0,1,1,0,1,0,1,1,0,1,1,1,0,1],
+    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+    [1,0,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,0,1],
+    [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
+    [1,1,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,1,1],
+    [1,1,1,1,0,1,9,9,9,9,9,9,9,1,0,1,1,1,1],
+    [1,0,0,0,0,0,9,9,9,9,9,9,9,0,0,0,0,0,1],
+    [1,1,1,1,0,1,9,9,9,9,9,9,9,1,0,1,1,1,1],
+    [1,1,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,1,1],
+    [1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],
+    [1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],
+    [1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1],
+    [1,1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1],
+    [1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],
+    [1,0,1,1,1,1,1,1,0,1,0,1,1,1,1,1,1,0,1],
+    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+];
+
+const Game = {
+    canvas: document.getElementById('gameCanvas'),
+    ctx: null,
+    gridSize: 32, halfTile: 16,
+    
+    state: 'start', paused: false,
+    score: 0, lives: 3, mistakes: 0,
+    
+    timeLimit: 120, // Default seconds
+    timeLeft: 120,
+    timerInterval: null,
+    
+    targetList: ['愛', '我', '人'],
+    manualDistractors: [],
+    targetIndex: 0,
+    currentTarget: '愛',
+    
+    player: { x: 0, y: 0, dir: {x:0, y:0}, nextDir: {x:0, y:0}, charType: 'pikachu' },
+    ghosts: [],
+    items: [],
+    powerUps: [], // Array for active powerups on map
+    collectedInLevel: 0, 
+    
+    // Effects
+    freezeTimer: 0,
+    speedBoostTimer: 0,
+    
+    baseSpeed: 1.2,
+    baseGhostSpeed: 1.2,
+    
+    inputState: { x: 0, y: 0 },
+    
+    init() {
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+        window.addEventListener('resize', () => {
+            clearTimeout(this.resizeTimeout);
+            this.resizeTimeout = setTimeout(() => this.resize(), 100);
+        });
+        window.addEventListener('keydown', (e) => this.handleKey(e, true));
+        window.addEventListener('keyup', (e) => this.handleKey(e, false));
+        this.bindTouch();
+        if (this.checkURLParams()) this.showSetupScreen(true);
+        requestAnimationFrame(() => this.loop());
+    },
+    
+    bindTouch() {
+        const dpadIds = ['d-up', 'd-down', 'd-left', 'd-right'];
+        const dirs = [{x:0,y:-1}, {x:0,y:1}, {x:-1,y:0}, {x:1,y:0}];
+        dpadIds.forEach((id, idx) => {
+            const el = document.getElementById(id);
+            const startHandler = (e) => {
+                if(e.cancelable) e.preventDefault(); e.stopPropagation();
+                this.inputState = dirs[idx];
+                if(navigator.vibrate) navigator.vibrate(10);
+            };
+            el.addEventListener('touchstart', startHandler, {passive:false});
+            el.addEventListener('mousedown', startHandler);
+            const stopHandler = (e) => {
+                e.preventDefault(); e.stopPropagation();
+                if (this.inputState === dirs[idx]) this.inputState = {x:0, y:0};
+            };
+            el.addEventListener('touchend', stopHandler);
+            el.addEventListener('mouseup', stopHandler);
+            el.addEventListener('mouseleave', stopHandler);
+        });
+    },
+
+    resize() {
+        const maxW = Math.min(window.innerWidth, 800);
+        const maxH = window.innerHeight;
+        const isPortrait = window.innerHeight > window.innerWidth;
+        const reservedHeight = isPortrait ? 220 : 100;
+        
+        const sW = Math.floor((maxW - 20) / 19);
+        const sH = Math.floor((maxH - reservedHeight) / 19); 
+        this.gridSize = Math.min(sW, sH, 40); 
+        this.halfTile = this.gridSize / 2;
+        this.canvas.width = this.gridSize * 19;
+        this.canvas.height = this.gridSize * 19;
+        if (this.state !== 'playing') this.draw();
+    },
+
+    checkURLParams() {
+        const p = new URLSearchParams(window.location.search);
+        const w = p.get('words');
+        const d = p.get('dist');
+        const t = p.get('time');
+        let f = false;
+        if(w) { this.targetList = decodeURIComponent(w).split(''); document.getElementById('target-input').value = this.targetList.join(''); f = true; }
+        if(d) {
+             this.manualDistractors = decodeURIComponent(d).split('').filter(c=>/[^\s,]/.test(c));
+             document.getElementById('distractor-input').value = this.manualDistractors.join('');
+             f = true;
+        }
+        if(t) {
+            this.timeLimit = parseInt(t);
+            document.getElementById('time-limit-input').value = this.timeLimit;
+            f = true;
+        }
+        return f;
+    },
+
+    startGame() {
+        const diff = document.querySelector('input[name="diff-select"]:checked').value;
+        const char = document.querySelector('input[name="char-select"]:checked').value;
+        
+        // Read Time Limit from Teacher Panel (or use default)
+        const timeInput = parseInt(document.getElementById('time-limit-input').value);
+        this.timeLimit = (timeInput && timeInput > 0) ? timeInput : 120;
+        
+        this.player.charType = char;
+        
+        if(diff === 'easy') { this.baseSpeed = 1.0; this.baseGhostSpeed = 1.0; } 
+        else if(diff === 'medium') { this.baseSpeed = 1.5; this.baseGhostSpeed = 1.5; }
+        else { this.baseSpeed = 2.0; this.baseGhostSpeed = 2.0; }
+        
+        this.score = 0; this.lives = 3; this.mistakes = 0; this.targetIndex = 0;
+        this.timeLeft = this.timeLimit;
+        
+        this.state = 'playing'; this.paused = false;
+        this.player.dir = {x:0,y:0}; this.player.nextDir = {x:0,y:0};
+        this.inputState = {x:0, y:0};
+        
+        this.freezeTimer = 0;
+        this.speedBoostTimer = 0;
+        this.powerUps = [];
+
+        this.startTimer();
+        this.loadLevel();
+        this.toggleScreen('');
+        this.announceTarget();
+    },
+
+    startTimer() {
+        if(this.timerInterval) clearInterval(this.timerInterval);
+        this.timerInterval = setInterval(() => {
+            if(this.state !== 'playing' || this.paused) return;
+            
+            this.timeLeft--;
+            if(this.timeLeft <= 0) {
+                this.die("時間到！");
+            }
+            this.updateHUD();
+            
+            // Random PowerUp Spawn logic (Checked every second)
+            // Increased chance slightly to 0.15 (15%) per second if few items
+            if (this.powerUps.length < 2 && Math.random() < 0.15) { 
+                this.spawnPowerUp();
+            }
+            
+            // Effect Timers
+            if(this.freezeTimer > 0) this.freezeTimer--;
+            if(this.speedBoostTimer > 0) this.speedBoostTimer--;
+            
+        }, 1000);
+    },
+
+    loadLevel() {
+        if(this.targetIndex >= this.targetList.length) this.targetIndex = 0;
+        this.currentTarget = this.targetList[this.targetIndex];
+        this.collectedInLevel = 0; 
+        
+        this.resetPositions();
+        this.spawnItems();
+        this.powerUps = []; // Clear powerups on new level
+        this.updateHUD();
+        // Removed showToast call here
+        this.announceTarget();
+    },
+
+    resetPositions() {
+        const gs = this.gridSize; const ht = this.halfTile;
+        this.player.x = 9 * gs + ht; this.player.y = 13 * gs + ht;
+        this.player.dir = {x:0, y:0}; this.player.nextDir = {x:0, y:0};
+        this.inputState = {x:0, y:0};
+        
+        this.ghosts = [
+            { x: 9*gs + ht, y: 9*gs + ht, color: '#e74c3c', dir: {x:1,y:0} },
+            { x: 8*gs + ht, y: 9*gs + ht, color: '#f39c12', dir: {x:-1,y:0} }
+        ];
+    },
+    
+    isIntersection(c, r) {
+        if (MAZE_MAP[r][c] === 1) return false;
+        let paths = 0;
+        if(MAZE_MAP[r-1] && MAZE_MAP[r-1][c]===0) paths++;
+        if(MAZE_MAP[r+1] && MAZE_MAP[r+1][c]===0) paths++;
+        if(MAZE_MAP[r][c-1]===0) paths++;
+        if(MAZE_MAP[r][c+1]===0) paths++;
+        return paths > 2;
+    },
+
+    getRandomWalkableTile() {
+        let validTiles = [];
+        for(let r=0; r<19; r++){
+            for(let c=0; c<19; c++){
+                if(MAZE_MAP[r][c] === 0) {
+                    if (r>7 && r<11 && c>7 && c<11) continue; 
+                    if (r>11 && c>7 && c<11) continue; 
+                    validTiles.push({c, r});
+                }
+            }
+        }
+        if(validTiles.length === 0) return null;
+        return validTiles[Math.floor(Math.random() * validTiles.length)];
+    },
+    
+    spawnPowerUp() {
+        const types = ['clock', 'rocket', 'coin'];
+        const type = types[Math.floor(Math.random() * types.length)];
+        const t = this.getRandomWalkableTile();
+        if(t) {
+            const gs = this.gridSize; const ht = this.halfTile;
+            // Check if position overlaps with existing items
+            const x = t.c*gs + ht;
+            const y = t.r*gs + ht;
+            
+            // Basic collision check against existing items to avoid overlap
+            const overlap = this.items.some(i => Math.abs(i.x - x) < 5 && Math.abs(i.y - y) < 5);
+            if(!overlap) {
+                this.powerUps.push({x: x, y: y, type: type});
+            }
+        }
+    },
+    
+    spawnItems() {
+        this.items = [];
+        let validTiles = [];
+        let pool = [];
+        
+        if (this.manualDistractors.length > 0) {
+            for (let i = 0; i < 5; i++) {
+                if (i < this.manualDistractors.length) {
+                    pool.push(this.manualDistractors[i]);
+                } else {
+                    const c = COMMON_CHARS[Math.floor(Math.random()*COMMON_CHARS.length)];
+                    if(c!==this.currentTarget && !pool.includes(c)) pool.push(c);
+                    else i--; 
+                }
+            }
+        } else {
+            const similar = CONFUSING_DB[this.currentTarget] || [];
+            similar.forEach(c => { if(c!==this.currentTarget && !pool.includes(c)) pool.push(c); });
+            while(pool.length < 5) {
+                const c = COMMON_CHARS[Math.floor(Math.random()*COMMON_CHARS.length)];
+                if(c!==this.currentTarget && !pool.includes(c)) pool.push(c);
+            }
+            pool = pool.slice(0, 5); 
+        }
+        
+        // Find Spots logic (simplified repeat)
+        for(let r=0; r<19; r++){
+            for(let c=0; c<19; c++){
+                if(MAZE_MAP[r][c] === 0) {
+                    if (r>7 && r<11 && c>7 && c<11) continue; 
+                    if (r>11 && c>7 && c<11) continue; 
+                    if (!this.isIntersection(c, r)) validTiles.push({c, r});
+                }
+            }
+        }
+        
+        for (let i = validTiles.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [validTiles[i], validTiles[j]] = [validTiles[j], validTiles[i]];
+        }
+        
+        const gs = this.gridSize; const ht = this.halfTile;
+        for(let i=0; i<10; i++) {
+            if(!validTiles.length) break;
+            let t = validTiles.pop();
+            this.items.push({x: t.c*gs + ht, y: t.r*gs + ht, char: this.currentTarget, type:'target'});
+        }
+        for(let i=0; i<5; i++) {
+            if(!validTiles.length) break;
+            let t = validTiles.pop();
+            let char = pool[i]; 
+            this.items.push({x: t.c*gs + ht, y: t.r*gs + ht, char: char, type:'distractor'});
+        }
+    },
+
+    handleKey(e, isDown) {
+        if(this.state !== 'playing') return;
+        if(isDown && e.code === 'Space') { this.togglePause(); return; }
+        const map = {ArrowUp:{x:0,y:-1}, ArrowDown:{x:0,y:1}, ArrowLeft:{x:-1,y:0}, ArrowRight:{x:1,y:0}};
+        if (map[e.key]) {
+            if (isDown) this.inputState = map[e.key];
+            else if (this.inputState.x === map[e.key].x && this.inputState.y === map[e.key].y) this.inputState = {x:0, y:0};
+        }
+    },
+
+    isWalkable(gx, gy) {
+        if (gx < 0 || gx >= 19 || gy < 0 || gy >= 19) return false;
+        return MAZE_MAP[gy][gx] !== 1;
+    },
+
+    moveEntity(ent, speed, isPlayer) {
+        const gs = this.gridSize; const ht = this.halfTile;
+        const gx = Math.floor(ent.x / gs); const gy = Math.floor(ent.y / gs);
+        const centerX = gx * gs + ht; const centerY = gy * gs + ht;
+        
+        if (isPlayer) {
+            if (this.inputState.x !== 0 || this.inputState.y !== 0) ent.nextDir = this.inputState;
+            else ent.nextDir = {x:0, y:0};
+        }
+
+        let distToCenter = 0;
+        if (ent.dir.x !== 0) distToCenter = Math.abs(ent.x - centerX);
+        else if (ent.dir.y !== 0) distToCenter = Math.abs(ent.y - centerY);
+        
+        let movingTowards = false;
+        if (ent.dir.x > 0 && ent.x < centerX) movingTowards = true;
+        if (ent.dir.x < 0 && ent.x > centerX) movingTowards = true;
+        if (ent.dir.y > 0 && ent.y < centerY) movingTowards = true;
+        if (ent.dir.y < 0 && ent.y > centerY) movingTowards = true;
+        
+        let moveAmt = speed;
+
+        if (movingTowards && distToCenter <= speed) {
+            ent.x = centerX; ent.y = centerY;
+            moveAmt -= distToCenter;
+            
+            if (isPlayer) {
+                if (ent.nextDir.x !== 0 || ent.nextDir.y !== 0) {
+                    if (this.isWalkable(gx + ent.nextDir.x, gy + ent.nextDir.y)) ent.dir = ent.nextDir;
+                    else if (this.isWalkable(gx + ent.dir.x, gy + ent.dir.y)) {} // Keep going
+                    else { ent.dir = {x:0, y:0}; moveAmt = 0; }
+                } else { ent.dir = {x:0, y:0}; moveAmt = 0; }
+            } else {
+                this.updateGhostRandom(ent, gx, gy);
+            }
+        } 
+        else if (isPlayer && ent.nextDir.x !== 0 && ent.nextDir.x === -ent.dir.x && ent.nextDir.y === -ent.dir.y) ent.dir = ent.nextDir;
+        else if (isPlayer && ent.dir.x === 0 && ent.dir.y === 0) {
+             if (ent.nextDir.x !== 0 || ent.nextDir.y !== 0) {
+                 if (this.isWalkable(gx + ent.nextDir.x, gy + ent.nextDir.y)) ent.dir = ent.nextDir;
+             }
+        }
+
+        if (moveAmt > 0 && (ent.dir.x !== 0 || ent.dir.y !== 0)) {
+            if (ent.dir.x !== 0) ent.y = centerY;
+            if (ent.dir.y !== 0) ent.x = centerX;
+
+            if (Math.abs(ent.x - centerX) < 2 && Math.abs(ent.y - centerY) < 2) {
+                 if (!this.isWalkable(gx + ent.dir.x, gy + ent.dir.y)) { ent.dir = {x:0, y:0}; return; }
+            }
+            ent.x += ent.dir.x * moveAmt; ent.y += ent.dir.y * moveAmt;
+        }
+
+        if (ent.x < 0) ent.x += this.canvas.width;
+        if (ent.x > this.canvas.width) ent.x -= this.canvas.width;
+    },
+    
+    updateGhostRandom(ghost, gx, gy) {
+        const moves = [];
+        const dirs = [{x:0,y:-1}, {x:0,y:1}, {x:-1,y:0}, {x:1,y:0}];
+        dirs.forEach(d => {
+            if (d.x === -ghost.dir.x && d.y === -ghost.dir.y) return;
+            const nextMap = MAZE_MAP[gy+d.y] && MAZE_MAP[gy+d.y][gx+d.x];
+            if (nextMap !== 1) moves.push(d);
+        });
+        if (moves.length === 0) ghost.dir = {x: -ghost.dir.x, y: -ghost.dir.y};
+        else ghost.dir = moves[Math.floor(Math.random() * moves.length)];
+    },
+
+    update() {
+        if (this.state !== 'playing' || this.paused) return;
+        
+        let pSpeed = this.baseSpeed;
+        if (this.speedBoostTimer > 0) pSpeed *= 2;
+        
+        this.moveEntity(this.player, pSpeed, true);
+        
+        if (this.freezeTimer <= 0) {
+            this.ghosts.forEach(g => this.moveEntity(g, this.baseGhostSpeed, false));
+        }
+        
+        this.checkCollisions();
+    },
+    
+    checkCollisions() {
+        const r = this.gridSize * 0.4;
+        
+        // Items
+        for(let i=this.items.length-1; i>=0; i--) {
+            const it = this.items[i];
+            const dist = Math.sqrt(Math.pow(this.player.x - it.x, 2) + Math.pow(this.player.y - it.y, 2));
+            if(dist < r + 5) {
+                this.items.splice(i, 1);
+                if(it.type === 'target') {
+                    this.score += 50;
+                    this.collectedInLevel++;
+                    this.playSound('good');
+                    this.speak(it.char);
+                    this.showPopup(it.char); // NEW: Show popup
+                    if (this.collectedInLevel >= 5) {
+                        this.playSound('levelup');
+                        this.targetIndex++;
+                        this.loadLevel();
+                    }
+                } else {
+                    this.score -= 20;
+                    this.mistakes++;
+                    this.playSound('bad');
+                    if(this.mistakes>=3) this.die("吃到太多干擾字");
+                }
+                this.updateHUD();
+            }
+        }
+        
+        // PowerUps
+        for(let i=this.powerUps.length-1; i>=0; i--) {
+            const p = this.powerUps[i];
+            const dist = Math.sqrt(Math.pow(this.player.x - p.x, 2) + Math.pow(this.player.y - p.y, 2));
+            if(dist < r + 8) {
+                this.powerUps.splice(i, 1);
+                this.playSound('good'); // Reuse good sound for now
+                
+                if (p.type === 'coin') {
+                    this.score += 200;
+                } else if (p.type === 'clock') {
+                    this.freezeTimer = 5; // 5 Seconds
+                } else if (p.type === 'rocket') {
+                    this.speedBoostTimer = 5; // 5 Seconds
+                }
+                this.updateHUD();
+            }
+        }
+
+        // Ghosts
+        if(this.freezeTimer <= 0) {
+            for(let g of this.ghosts) {
+                const dist = Math.sqrt(Math.pow(this.player.x - g.x, 2) + Math.pow(this.player.y - g.y, 2));
+                if(dist < r + 5) { this.die("被抓到了"); break; }
+            }
+        }
+    },
+    
+    die(reason) {
+        this.lives--;
+        this.updateHUD();
+        this.playSound('bad');
+        if(this.lives <= 0) {
+            clearInterval(this.timerInterval);
+            document.getElementById('death-reason').innerText = reason;
+            this.state = 'gameover';
+            this.toggleScreen('game-over-screen');
+            document.getElementById('final-score').innerText = `最終得分: ${this.score}`;
+        } else {
+            this.state = 'frozen';
+            this.mistakes = 0;
+            this.updateHUD();
+            setTimeout(() => {
+                if(this.lives > 0) {
+                    this.resetPositions();
+                    this.state = 'playing';
+                }
+            }, 2000);
+        }
+    },
+
+    draw() {
+        const ctx = this.ctx;
+        const gs = this.gridSize;
+        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Map
+        for(let r=0; r<19; r++){
+            for(let c=0; c<19; c++){
+                if(MAZE_MAP[r][c]===1) {
+                    ctx.fillStyle = '#1e3799'; ctx.fillRect(c*gs, r*gs, gs, gs);
+                    ctx.strokeStyle='#4a69bd'; ctx.lineWidth=1; ctx.strokeRect(c*gs, r*gs, gs, gs);
+                } else if(MAZE_MAP[r][c]===9) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.1)'; ctx.fillRect(c*gs, r*gs, gs, gs);
+                }
+            }
+        }
+        
+        // Powerups
+        ctx.font = `${gs*0.8}px sans-serif`;
+        ctx.textAlign='center'; ctx.textBaseline='middle';
+        this.powerUps.forEach(p => {
+            let icon = '';
+            if(p.type === 'clock') icon = '⏰';
+            else if(p.type === 'rocket') icon = '🚀';
+            else if(p.type === 'coin') icon = '💰';
+            ctx.fillText(icon, p.x, p.y + 2);
+        });
+
+        // Items
+        ctx.font = `bold ${gs*0.7}px "Klee One", sans-serif`; 
+        this.items.forEach(i => {
+            ctx.fillStyle = '#ffffff'; 
+            ctx.fillText(i.char, i.x, i.y + 1); 
+        });
+        
+        // Player & Ghosts
+        this.drawEnt(this.player.x, this.player.y, gs, this.player.dir, 'player');
+        this.ghosts.forEach(g => this.drawEnt(g.x, g.y, gs, g.dir, 'ghost', g.color));
+    },
+    
+    drawEnt(x, y, s, dir, type, color) {
+        const ctx = this.ctx;
+        ctx.save(); ctx.translate(x, y);
+        
+        if(type === 'player') {
+            let angle = 0;
+            if(dir.x===-1) angle=Math.PI; if(dir.y===1) angle=Math.PI/2; if(dir.y===-1) angle=-Math.PI/2;
+            ctx.rotate(angle);
+            ctx.fillStyle = '#f1c40f'; 
+            
+            // Speed Boost Visual
+            if(this.speedBoostTimer > 0) {
+                 ctx.shadowBlur = 10; ctx.shadowColor = 'white';
+            }
+
+            ctx.beginPath();
+            const m = Math.abs(Math.sin(Date.now()/100))*0.5;
+            ctx.arc(0,0, s/2-2, m, Math.PI*2-m); ctx.lineTo(0,0); ctx.fill();
+            
+            ctx.shadowBlur = 0; // Reset shadow
+            
+            ctx.rotate(-angle);
+            ctx.fillStyle='#c0392b'; ctx.font=`${s*0.5}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle';
+            let icon='⚡';
+            if(this.player.charType==='superman') icon='S';
+            if(this.player.charType==='ironman') icon='🤖';
+            if(this.player.charType==='mario') icon='M';
+            ctx.fillText(icon, 0, 1); 
+        } else {
+            // Freeze Visual
+            if (this.freezeTimer > 0) {
+                ctx.fillStyle = '#3498db'; // Frozen color
+            } else {
+                ctx.fillStyle = color;
+            }
+            
+            ctx.beginPath(); ctx.arc(0, -s/10, s/2-2, Math.PI, 0);
+            ctx.lineTo(s/2-2, s/2-2); ctx.lineTo(-s/2+2, s/2-2); ctx.fill();
+            ctx.fillStyle='white'; 
+            ctx.beginPath(); ctx.arc(-s/5, -s/5, s/6, 0, Math.PI*2); ctx.arc(s/5, -s/5, s/6, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle='blue';
+            ctx.beginPath(); ctx.arc(-s/5+dir.x*2, -s/5+dir.y*2, s/12, 0, Math.PI*2); ctx.arc(s/5+dir.x*2, -s/5+dir.y*2, s/12, 0, Math.PI*2); ctx.fill();
+            
+            if (this.freezeTimer > 0) {
+                ctx.fillStyle = 'white'; ctx.font = `${s*0.5}px Arial`; ctx.fillText('❄️', 0, 0);
+            }
+        }
+        ctx.restore();
+    },
+
+    loop() { this.update(); this.draw(); requestAnimationFrame(()=>this.loop()); },
+    
+    updateHUD() {
+        document.getElementById('score-board').innerText = `SCORE: ${this.score}`;
+        document.getElementById('current-target-char').innerText = this.currentTarget;
+        document.getElementById('lives-board').innerText = "❤️".repeat(this.lives);
+        document.getElementById('mistake-board').innerText = `干擾: ${this.mistakes}/3`;
+        document.getElementById('mistake-board').style.color = this.mistakes>=2?'#e74c3c':'#f39c12';
+        
+        // Timer display
+        const tb = document.getElementById('timer-board');
+        tb.innerText = this.timeLeft;
+        tb.style.color = this.timeLeft <= 10 ? '#e74c3c' : '#fff';
+
+        const displayCount = Math.min(this.collectedInLevel, 5);
+        document.getElementById('level-progress').innerText = `${displayCount} / 5`;
+        
+        // Buff Indicator
+        const buffEl = document.getElementById('buff-indicator');
+        buffEl.innerHTML = '';
+        if(this.speedBoostTimer > 0) buffEl.innerHTML += `<div class="buff-icon">🚀 ${this.speedBoostTimer}</div>`;
+        if(this.freezeTimer > 0) buffEl.innerHTML += `<div class="buff-icon">⏰ ${this.freezeTimer}</div>`;
+    },
+
+    announceTarget() { if('speechSynthesis' in window) { const u=new SpeechSynthesisUtterance(`請找，${this.currentTarget}`); u.lang='zh-TW'; window.speechSynthesis.speak(u); }},
+    speak(t) { if('speechSynthesis' in window) { window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang='zh-TW'; window.speechSynthesis.speak(u); }},
+    
+    // Popup Logic
+    showPopup(char) {
+        const p = document.getElementById('center-popup');
+        p.innerText = char;
+        p.classList.add('popup-visible');
+        setTimeout(() => p.classList.remove('popup-visible'), 800); // 0.8s display
+    },
+
+    playSound(t) {
+        if(!window.AudioContext && !window.webkitAudioContext) return;
+        const ctx = new (window.AudioContext||window.webkitAudioContext)();
+        const o=ctx.createOscillator(); const g=ctx.createGain(); o.connect(g); g.connect(ctx.destination);
+        const now=ctx.currentTime;
+        if(t==='good') { o.freq=600; o.frequency.exponentialRampToValueAtTime(1200, now+0.1); g.gain.setValueAtTime(0.1,now); g.gain.linearRampToValueAtTime(0,now+0.2); o.start(now); o.stop(now+0.2); }
+        else if(t==='bad') { o.type='sawtooth'; o.freq=150; g.gain.setValueAtTime(0.2,now); g.gain.linearRampToValueAtTime(0,now+0.3); o.start(now); o.stop(now+0.3); }
+        else if(t==='silent') { g.gain.value=0; o.start(now); o.stop(now+0.01); }
+    },
+
+    togglePause() { 
+        if(this.state!=='playing') return; this.paused=!this.paused; 
+        document.getElementById('pause-overlay').style.display=this.paused?'flex':'none';
+        document.getElementById('pause-btn').innerText=this.paused?'▶':'||';
+    },
+    
+    showSetupScreen(s) { this.toggleScreen('setup-screen'); document.getElementById('teacher-msg').style.display=s?'block':'none'; },
+    showTeacherPanel() { this.toggleScreen('teacher-screen'); },
+    showMenu() { this.toggleScreen('start-screen'); },
+    restart() { this.startGame(); },
+    startFromSetup() { this.startGame(); },
+    toggleScreen(id) { 
+        ['start-screen','setup-screen','teacher-screen','game-over-screen'].forEach(s=>document.getElementById(s).classList.add('hidden')); 
+        if(id) document.getElementById(id).classList.remove('hidden'); 
+        document.getElementById('game-ui').style.display=id===''?'block':'none';
+    },
+    saveSettings() { 
+        const t=document.getElementById('target-input').value.trim(); 
+        const d=document.getElementById('distractor-input').value.trim();
+        const time=document.getElementById('time-limit-input').value;
+        if(t) { 
+            this.targetList=t.replace(/\s/g,'').split(''); 
+            this.manualDistractors=d?d.replace(/\s/g,'').split(''):[];
+            if(time) this.timeLimit = parseInt(time);
+            this.showSetupScreen(false); 
+        } else alert("請輸入題目");
+    },
+    generateShareLink() {
+        const t=document.getElementById('target-input').value.trim().replace(/\s/g,'');
+        const d=document.getElementById('distractor-input').value.trim().replace(/\s/g,',');
+        const time=document.getElementById('time-limit-input').value;
+        
+        if(!t) return alert("請輸入文字");
+        let u=`${window.location.origin}${window.location.pathname}?words=${encodeURIComponent(t)}&time=${time}`;
+        if(d) u+=`&dist=${encodeURIComponent(d)}`;
+        
+        document.getElementById('share-section').style.display='block';
+        document.getElementById('share-link-box').value=u;
+        document.getElementById('qr-code-img').src=`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(u)}`;
+    }
+};
+
+window.onload = () => Game.init();
+</script>
+</body>
+</html>
