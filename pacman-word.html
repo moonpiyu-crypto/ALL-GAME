@@ -136,7 +136,6 @@
             align-items: center; z-index: 25; color: white; font-size: 3rem; font-weight: bold;
         }
         
-        /* PowerUp Indicator */
         #buff-indicator {
             position: absolute; bottom: 200px; right: 20px;
             display: flex; flex-direction: column; gap: 5px; align-items: flex-end;
@@ -144,7 +143,6 @@
         .buff-icon { font-size: 1.5rem; text-shadow: 0 0 5px white; animation: pulse 1s infinite; }
         @keyframes pulse { 0% {transform:scale(1);} 50% {transform:scale(1.2);} 100% {transform:scale(1);} }
 
-        /* Center Popup Style - 大字提示 */
         #center-popup {
             position: absolute; top: 50%; left: 50%; 
             transform: translate(-50%, -50%) scale(0);
@@ -185,7 +183,7 @@
         #d-right { grid-column: 3; grid-row: 2; border-radius: 0 15px 15px 0; }
         #d-down { grid-column: 2; grid-row: 3; border-radius: 0 0 15px 15px; }
         
-        #qr-code-img { max-width: 120px; display: block; margin: 10px auto; border: 5px solid white; }
+        #qr-code-img { max-width: 150px; display: block; margin: 10px auto; border: 5px solid white; }
     </style>
 </head>
 <body>
@@ -223,7 +221,7 @@
         <h1>皮卡丘<br>迷宮接字樂</h1>
         <button class="btn" onclick="Game.showTeacherPanel()">我是老師 (出題)</button>
         <button class="btn btn-secondary" onclick="Game.showSetupScreen(false)">開始遊戲</button>
-        <div style="color:#aaa; font-size:0.8rem; margin-top:20px; opacity: 0.7;">V11.2 完整版 (道具+大字)</div>
+        <div style="color:#aaa; font-size:0.8rem; margin-top:20px; opacity: 0.7;">V11.3 修正QR版 (修復錯誤)</div>
     </div>
 
     <div id="setup-screen" class="ui-screen hidden">
@@ -250,7 +248,8 @@
         </div>
 
         <button class="btn" style="margin-top: 20px;" onclick="Game.startFromSetup()">GO! 出發</button>
-        <button class="btn btn-secondary" onclick="Game.showMenu()">返回</button>
+        <!-- Added ID for control -->
+        <button id="setup-back-btn" class="btn btn-secondary" onclick="Game.showMenu()">返回</button>
     </div>
 
     <div id="teacher-screen" class="ui-screen hidden">
@@ -272,8 +271,9 @@
             </div>
             
             <div id="share-section" style="display:none; border-top:1px dashed #eee; padding-top:10px; width:100%;">
-                <img id="qr-code-img" alt="QR" src="" onerror="this.style.display='none';alert('QR Code 生成失敗');">
-                <input type="text" id="share-link-box" readonly onclick="this.select(); document.execCommand('copy');" style="width:100%; padding:8px;">
+                <img id="qr-code-img" alt="QR" src="" onerror="this.style.display='none';alert('QR Code 生成失敗，請檢查網路');">
+                <div style="font-size:0.8rem; color:#666; margin-bottom:5px;">請學生掃描或分享連結:</div>
+                <input type="text" id="share-link-box" readonly onclick="this.select(); document.execCommand('copy');" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ddd;">
             </div>
             <button class="btn btn-secondary" onclick="Game.showMenu()">返回</button>
         </div>
@@ -396,8 +396,11 @@ const Game = {
         
         const sW = Math.floor((maxW - 20) / 19);
         const sH = Math.floor((maxH - reservedHeight) / 19); 
-        this.gridSize = Math.min(sW, sH, 40); 
+        
+        // FIX: Ensure gridSize is at least 12 to avoid negative radius
+        this.gridSize = Math.max(12, Math.min(sW, sH, 40)); 
         this.halfTile = this.gridSize / 2;
+        
         this.canvas.width = this.gridSize * 19;
         this.canvas.height = this.gridSize * 19;
         if (this.state !== 'playing') this.draw();
@@ -825,6 +828,9 @@ const Game = {
         const ctx = this.ctx;
         ctx.save(); ctx.translate(x, y);
         
+        // FIX: Ensure radius is never negative
+        const rSafe = Math.max(0.1, s/2 - 2); 
+
         if(type === 'player') {
             let angle = 0;
             if(dir.x===-1) angle=Math.PI; if(dir.y===1) angle=Math.PI/2; if(dir.y===-1) angle=-Math.PI/2;
@@ -838,7 +844,8 @@ const Game = {
 
             ctx.beginPath();
             const m = Math.abs(Math.sin(Date.now()/100))*0.5;
-            ctx.arc(0,0, s/2-2, m, Math.PI*2-m); ctx.lineTo(0,0); ctx.fill();
+            // Use safe radius here
+            ctx.arc(0,0, rSafe, m, Math.PI*2-m); ctx.lineTo(0,0); ctx.fill();
             
             ctx.shadowBlur = 0; // Reset shadow
             
@@ -857,7 +864,8 @@ const Game = {
                 ctx.fillStyle = color;
             }
             
-            ctx.beginPath(); ctx.arc(0, -s/10, s/2-2, Math.PI, 0);
+            // Use safe radius here as well
+            ctx.beginPath(); ctx.arc(0, -s/10, rSafe, Math.PI, 0);
             ctx.lineTo(s/2-2, s/2-2); ctx.lineTo(-s/2+2, s/2-2); ctx.fill();
             ctx.fillStyle='white'; 
             ctx.beginPath(); ctx.arc(-s/5, -s/5, s/6, 0, Math.PI*2); ctx.arc(s/5, -s/5, s/6, 0, Math.PI*2); ctx.fill();
@@ -922,7 +930,13 @@ const Game = {
         document.getElementById('pause-btn').innerText=this.paused?'▶':'||';
     },
     
-    showSetupScreen(s) { this.toggleScreen('setup-screen'); document.getElementById('teacher-msg').style.display=s?'block':'none'; },
+    showSetupScreen(s) { 
+        this.toggleScreen('setup-screen'); 
+        document.getElementById('teacher-msg').style.display=s?'block':'none'; 
+        // Hide back button if student link mode (s=true)
+        const backBtn = document.getElementById('setup-back-btn');
+        if(backBtn) backBtn.style.display = s ? 'none' : 'inline-block';
+    },
     showTeacherPanel() { this.toggleScreen('teacher-screen'); },
     showMenu() { this.toggleScreen('start-screen'); },
     restart() { this.startGame(); },
@@ -949,12 +963,14 @@ const Game = {
         const time=document.getElementById('time-limit-input').value;
         
         if(!t) return alert("請輸入文字");
-        let u=`${window.location.origin}${window.location.pathname}?words=${encodeURIComponent(t)}&time=${time}`;
+        // FIX: Use window.location.href to ensure correct base URL and avoid origin issues
+        let baseUrl = window.location.href.split('?')[0];
+        let u=`${baseUrl}?words=${encodeURIComponent(t)}&time=${time}`;
         if(d) u+=`&dist=${encodeURIComponent(d)}`;
         
         document.getElementById('share-section').style.display='block';
         document.getElementById('share-link-box').value=u;
-        document.getElementById('qr-code-img').src=`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(u)}`;
+        document.getElementById('qr-code-img').src=`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(u)}`;
     }
 };
 
