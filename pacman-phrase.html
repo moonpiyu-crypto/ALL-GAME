@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>皮卡丘迷宮 (語詞完整版)</title>
+    <title>皮卡丘迷宮 (最終完美版)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&display=swap" rel="stylesheet">
+    <!-- 引入 QR Code 生成庫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     
     <style>
         * { 
@@ -148,16 +150,15 @@
         .buff-icon { font-size: 1.5rem; text-shadow: 0 0 5px white; animation: pulse 1s infinite; }
         @keyframes pulse { 0% {transform:scale(1);} 50% {transform:scale(1.2);} 100% {transform:scale(1);} }
 
-        /* Center Popup Style */
         #center-popup {
             position: absolute; top: 50%; left: 50%; 
             transform: translate(-50%, -50%) scale(0);
             background: rgba(0,0,0,0.85); 
             border: 5px solid #f1c40f; 
             border-radius: 50%; 
-            width: 180px; height: 180px; /* Slightly larger for words */
+            width: 180px; height: 180px;
             color: #f1c40f; 
-            font-size: 3rem; /* Dynamic in JS */
+            font-size: 3rem; 
             font-weight: bold;
             z-index: 100; 
             pointer-events: none; 
@@ -165,8 +166,7 @@
             display: flex; justify-content: center; align-items: center;
             box-shadow: 0 0 50px rgba(241, 196, 15, 0.8);
             text-shadow: 2px 2px 0 #000;
-            text-align: center;
-            padding: 10px;
+            text-align: center; padding: 10px;
         }
         .popup-visible { transform: translate(-50%, -50%) scale(1) !important; }
 
@@ -191,7 +191,15 @@
         #d-right { grid-column: 3; grid-row: 2; border-radius: 0 15px 15px 0; }
         #d-down { grid-column: 2; grid-row: 3; border-radius: 0 0 15px 15px; }
         
-        #qr-code-img { max-width: 120px; display: block; margin: 10px auto; border: 5px solid white; }
+        /* QR Code Canvas 樣式 */
+        #qr-code-canvas { 
+            max-width: 200px; 
+            display: none; 
+            margin: 15px auto; 
+            border: 8px solid white; 
+            background: white; 
+            border-radius: 5px; 
+        }
     </style>
 </head>
 <body>
@@ -230,7 +238,7 @@
         <h1>皮卡丘<br>迷宮接字樂 (語詞版)</h1>
         <button class="btn" onclick="Game.showTeacherPanel()">我是老師 (出題)</button>
         <button class="btn btn-secondary" onclick="Game.showSetupScreen(false)">開始遊戲</button>
-        <div style="color:#aaa; font-size:0.8rem; margin-top:20px; opacity: 0.7;">V11.2 Ultimate Words</div>
+        <div style="color:#aaa; font-size:0.8rem; margin-top:20px; opacity: 0.7;">V11.5 完美QR版</div>
     </div>
 
     <div id="setup-screen" class="ui-screen hidden">
@@ -257,7 +265,8 @@
         </div>
 
         <button class="btn" style="margin-top: 20px;" onclick="Game.startFromSetup()">GO! 出發</button>
-        <button class="btn btn-secondary" onclick="Game.showMenu()">返回</button>
+        <!-- 學生模式下會隱藏此按鈕 -->
+        <button id="setup-back-btn" class="btn btn-secondary" onclick="Game.showMenu()">返回</button>
     </div>
 
     <div id="teacher-screen" class="ui-screen hidden">
@@ -279,8 +288,10 @@
             </div>
             
             <div id="share-section" style="display:none; border-top:1px dashed #eee; padding-top:10px; width:100%;">
-                <img id="qr-code-img" alt="QR" src="" onerror="this.style.display='none';alert('QR Code 生成失敗');">
-                <input type="text" id="share-link-box" readonly onclick="this.select(); document.execCommand('copy');" style="width:100%; padding:8px;">
+                <!-- 改用 Canvas 繪製 QR -->
+                <canvas id="qr-code-canvas"></canvas>
+                <div style="font-size:0.8rem; color:#666; margin:5px 0;">請學生掃描或分享連結:</div>
+                <input type="text" id="share-link-box" readonly onclick="this.select(); document.execCommand('copy');" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ddd;">
             </div>
             <button class="btn btn-secondary" onclick="Game.showMenu()">返回</button>
         </div>
@@ -406,8 +417,11 @@ const Game = {
         
         const sW = Math.floor((maxW - 20) / 19);
         const sH = Math.floor((maxH - reservedHeight) / 19); 
-        this.gridSize = Math.min(sW, sH, 40); 
+        
+        // FIX: Ensure gridSize is at least 12 to avoid negative radius
+        this.gridSize = Math.max(12, Math.min(sW, sH, 40)); 
         this.halfTile = this.gridSize / 2;
+        
         this.canvas.width = this.gridSize * 19;
         this.canvas.height = this.gridSize * 19;
         if (this.state !== 'playing') this.draw();
@@ -415,7 +429,7 @@ const Game = {
 
     parseList(str) {
         if(!str) return [];
-        // Split by comma, space, chinese comma
+        // Handle mixed separators: space, comma, chinese comma
         return str.split(/[,\s，、]+/).filter(w => w.length > 0);
     },
 
@@ -565,12 +579,12 @@ const Game = {
         let validTiles = [];
         let pool = [];
         
-        // Prepare Distractors (Words logic)
+        // Prepare Distractors
         if (this.manualDistractors.length > 0) {
             pool = [...this.manualDistractors];
         } 
         
-        // Fill up with common words
+        // Fill up with common words if needed
         let safety = 0;
         while(pool.length < 5 && safety < 100) {
             const w = COMMON_WORDS[Math.floor(Math.random()*COMMON_WORDS.length)];
@@ -728,7 +742,7 @@ const Game = {
                     this.collectedInLevel++;
                     this.playSound('good');
                     this.speak(it.text);
-                    this.showPopup(it.text); // NEW: Show popup with Word
+                    this.showPopup(it.text); 
                     if (this.collectedInLevel >= 5) {
                         this.playSound('levelup');
                         this.targetIndex++;
@@ -826,11 +840,10 @@ const Game = {
         // Items (Words) - Dynamic font scaling
         this.items.forEach(i => {
             ctx.fillStyle = '#ffffff'; 
-            // Calculate font size based on word length
-            let fontSize = gs * 0.7; // Default for 1 char
-            if (i.text.length > 1) fontSize = gs * 0.5; // 2 chars
-            if (i.text.length > 2) fontSize = gs * 0.35; // 3 chars
-            if (i.text.length > 3) fontSize = gs * 0.3; // 4+ chars
+            let fontSize = gs * 0.7; 
+            if (i.text.length > 1) fontSize = gs * 0.5; 
+            if (i.text.length > 2) fontSize = gs * 0.35; 
+            if (i.text.length > 3) fontSize = gs * 0.3; 
             
             ctx.font = `bold ${fontSize}px "Klee One", sans-serif`;
             ctx.fillText(i.text, i.x, i.y + 1); 
@@ -845,6 +858,9 @@ const Game = {
         const ctx = this.ctx;
         ctx.save(); ctx.translate(x, y);
         
+        // FIX: Ensure radius is never negative
+        const rSafe = Math.max(0.1, s/2 - 2); 
+
         if(type === 'player') {
             let angle = 0;
             if(dir.x===-1) angle=Math.PI; if(dir.y===1) angle=Math.PI/2; if(dir.y===-1) angle=-Math.PI/2;
@@ -857,7 +873,7 @@ const Game = {
 
             ctx.beginPath();
             const m = Math.abs(Math.sin(Date.now()/100))*0.5;
-            ctx.arc(0,0, s/2-2, m, Math.PI*2-m); ctx.lineTo(0,0); ctx.fill();
+            ctx.arc(0,0, rSafe, m, Math.PI*2-m); ctx.lineTo(0,0); ctx.fill();
             
             ctx.shadowBlur = 0; 
             
@@ -875,7 +891,7 @@ const Game = {
                 ctx.fillStyle = color;
             }
             
-            ctx.beginPath(); ctx.arc(0, -s/10, s/2-2, Math.PI, 0);
+            ctx.beginPath(); ctx.arc(0, -s/10, rSafe, Math.PI, 0);
             ctx.lineTo(s/2-2, s/2-2); ctx.lineTo(-s/2+2, s/2-2); ctx.fill();
             ctx.fillStyle='white'; 
             ctx.beginPath(); ctx.arc(-s/5, -s/5, s/6, 0, Math.PI*2); ctx.arc(s/5, -s/5, s/6, 0, Math.PI*2); ctx.fill();
@@ -914,16 +930,12 @@ const Game = {
     announceTarget() { if('speechSynthesis' in window) { const u=new SpeechSynthesisUtterance(`請找，${this.currentTarget}`); u.lang='zh-TW'; window.speechSynthesis.speak(u); }},
     speak(t) { if('speechSynthesis' in window) { window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang='zh-TW'; window.speechSynthesis.speak(u); }},
     
-    // Popup Logic with font scaling
     showPopup(text) {
         const p = document.getElementById('center-popup');
         p.innerText = text;
-        
-        // Adjust font size for longer words
         if (text.length > 3) p.style.fontSize = "2.5rem";
         else if (text.length > 2) p.style.fontSize = "3rem";
         else p.style.fontSize = "4.5rem";
-        
         p.classList.add('popup-visible');
         setTimeout(() => p.classList.remove('popup-visible'), 800); 
     },
@@ -944,7 +956,13 @@ const Game = {
         document.getElementById('pause-btn').innerText=this.paused?'▶':'||';
     },
     
-    showSetupScreen(s) { this.toggleScreen('setup-screen'); document.getElementById('teacher-msg').style.display=s?'block':'none'; },
+    showSetupScreen(s) { 
+        this.toggleScreen('setup-screen'); 
+        document.getElementById('teacher-msg').style.display=s?'block':'none'; 
+        // 隱藏返回按鈕 logic
+        const backBtn = document.getElementById('setup-back-btn');
+        if(backBtn) backBtn.style.display = s ? 'none' : 'inline-block';
+    },
     showTeacherPanel() { this.toggleScreen('teacher-screen'); },
     showMenu() { this.toggleScreen('start-screen'); },
     restart() { this.startGame(); },
@@ -971,12 +989,24 @@ const Game = {
         const time=document.getElementById('time-limit-input').value;
         
         if(!t) return alert("請輸入文字");
-        let u=`${window.location.origin}${window.location.pathname}?words=${encodeURIComponent(t)}&time=${time}`;
+        // FIX: Use absolute URL
+        let baseUrl = window.location.href.split('?')[0];
+        let u=`${baseUrl}?words=${encodeURIComponent(t)}&time=${time}`;
         if(d) u+=`&dist=${encodeURIComponent(d)}`;
         
         document.getElementById('share-section').style.display='block';
         document.getElementById('share-link-box').value=u;
-        document.getElementById('qr-code-img').src=`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(u)}`;
+        
+        // 使用 QRious 生成 Canvas QR Code
+        const canvas = document.getElementById('qr-code-canvas');
+        canvas.style.display = 'block';
+        new QRious({
+            element: canvas,
+            value: u,
+            size: 200,
+            background: 'white',
+            foreground: 'black'
+        });
     }
 };
 
