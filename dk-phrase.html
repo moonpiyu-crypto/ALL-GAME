@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>大金剛：語詞大冒險 (Word Version)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- QR Code 庫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- 字體 -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    
+    <style>
+        /* 定義中文字體：標楷體優先 */
+        @font-face {
+            font-family: 'BiauKaiStandard';
+            src: local("BiauKai"), local("DFKai-SB"), local("標楷體"), local("KaiTi");
+        }
+
+        body {
+            font-family: "BiauKaiStandard", "BiauKai", "DFKai-SB", "標楷體", serif;
+            touch-action: none;
+            background-color: #111;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+            height: 100dvh;
+            width: 100vw;
+        }
+
+        #gameWrapper {
+            position: relative;
+            width: 100%;
+            height: 100dvh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+        }
+
+        #gameCanvas {
+            image-rendering: pixelated; 
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            width: 100%;
+            height: 100%;
+            object-fit: contain; 
+            max-width: 100%;
+            max-height: 100%;
+            aspect-ratio: 224/256; 
+        }
+
+        /* 手機控制介面 */
+        #mobileControls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+
+        .control-zone {
+            pointer-events: auto;
+            padding: 10px;
+        }
+
+        .pixel-btn {
+            background: rgba(255, 255, 255, 0.15);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 0 rgba(0,0,0,0.5);
+            color: rgba(255,255,255,0.9);
+            border-radius: 8px;
+            backdrop-filter: blur(2px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            touch-action: manipulation;
+            font-family: "BiauKaiStandard", "標楷體", serif;
+            font-weight: bold;
+        }
+        
+        .pixel-btn:active, .pixel-btn.active {
+            background: rgba(255, 255, 255, 0.4);
+            transform: translateY(4px);
+            box-shadow: 0 0 0 rgba(0,0,0,0);
+        }
+
+        .d-pad-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 8px;
+            width: 180px;
+        }
+        
+        .d-btn-up { grid-column: 2; grid-row: 1; }
+        .d-btn-left { grid-column: 1; grid-row: 2; }
+        .d-btn-right { grid-column: 3; grid-row: 2; }
+
+        /* 模態視窗 */
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 50; flex-direction: column;
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        .blink { animation: blinker 1s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+        
+        /* QR Code 容器 */
+        #qrcode {
+            background-color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px auto;
+            width: 190px;
+            height: 190px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border: 4px solid #333;
+        }
+        #qrcode img { display: block; margin: 0 auto; }
+
+        /* 教學朗讀遮罩 */
+        #learningOverlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            border: 6px solid #4ade80; 
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            z-index: 40;
+            display: none;
+            min-width: 300px;
+            box-shadow: 0 0 50px rgba(74, 222, 128, 0.5);
+        }
+        #learningWord {
+            font-size: 60px; /* 語詞版稍微縮小一點預設字體 */
+            color: #ffffff;
+            font-weight: bold;
+            margin: 0;
+            line-height: 1.2;
+            text-shadow: 4px 4px 0 #000;
+            font-family: "BiauKaiStandard", "標楷體", serif;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 教師設定面板 -->
+    <div id="teacherPanel" class="modal">
+        <div class="bg-gray-800 p-4 w-full max-w-md border-4 border-red-600 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <h1 class="text-2xl font-bold mb-4 text-center text-red-500 leading-relaxed font-serif">
+                大金剛：語詞大冒險<br><span class="text-white text-base">語詞教學版</span>
+            </h1>
+            <div class="space-y-4 text-white">
+                <div>
+                    <label class="block mb-1 text-green-300 font-bold text-lg">1. 輸入目標語詞 (換行分隔)</label>
+                    <textarea id="inputWords" class="w-full h-24 p-2 bg-black text-green-400 border-2 border-green-500 text-xl rounded font-bold placeholder-gray-600" placeholder="蘋果&#10;香蕉&#10;西瓜&#10;(每一行就是一個關卡)"></textarea>
+                </div>
+                <div>
+                    <label class="block mb-1 text-red-300 font-bold text-lg">2. 輸入干擾語詞 (換行分隔)</label>
+                    <textarea id="inputDistractors" class="w-full h-24 p-2 bg-black text-red-400 border-2 border-red-500 text-xl rounded font-bold placeholder-gray-600" placeholder="桌子&#10;椅子&#10;鉛筆&#10;(若留空則自動生成常見詞)"></textarea>
+                    <p class="text-xs text-gray-400 mt-1">* 請輸入與目標詞長度相近的干擾詞。</p>
+                </div>
+                <div>
+                    <label class="block mb-1 text-blue-300 font-bold text-lg">3. 遊戲時間 (秒)</label>
+                    <input type="number" id="inputTime" value="180" class="w-full p-2 bg-black border-2 border-blue-500 text-white text-center rounded text-xl">
+                </div>
+            </div>
+            <button onclick="generateGameLink()" class="w-full mt-6 bg-red-700 active:bg-red-800 text-white font-bold py-4 rounded border-b-4 border-red-900 text-xl shadow-lg hover:bg-red-600 transition">產生遊戲 QR Code</button>
+            
+            <div id="shareSection" class="hidden mt-6 flex flex-col items-center bg-white p-4 rounded text-black w-full">
+                <!-- QR Code 容器 -->
+                <div id="qrcode"></div>
+                
+                <p class="text-sm text-center mb-2 font-bold text-red-600">請學生掃描上方 QR Code</p>
+                <input type="text" id="shareLink" class="w-full p-2 text-xs border bg-gray-100 mb-2 rounded" readonly>
+                
+                <div class="flex gap-2 w-full mt-2">
+                    <button onclick="copyLink()" class="flex-1 bg-blue-600 text-white py-3 rounded shadow font-bold text-lg hover:bg-blue-500">複製連結</button>
+                    <button onclick="enterStudentMode()" class="flex-1 bg-green-600 text-white py-3 rounded shadow font-bold text-lg hover:bg-green-500">直接開始</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 學生選單 -->
+    <div id="studentMenu" class="modal hidden">
+        <div class="text-center w-full max-w-md">
+            <h1 class="text-red-500 text-5xl mb-2 font-bold shadow-white drop-shadow-sm font-serif">大金剛</h1>
+            <p class="text-blue-400 text-2xl mb-8 font-bold font-serif">語詞大冒險</p>
+            <div class="mb-8 w-full">
+                <p class="text-white mb-4 text-xl blink font-bold">請選擇難度</p>
+                <div class="flex flex-col gap-3 w-3/4 mx-auto">
+                    <button onclick="startGame('easy')" class="w-full py-4 bg-green-700 text-white rounded-lg border-b-4 border-green-900 text-2xl font-bold active:translate-y-1 active:border-b-0 shadow-lg">簡單 (慢速)</button>
+                    <button onclick="startGame('medium')" class="w-full py-4 bg-yellow-600 text-white rounded-lg border-b-4 border-yellow-800 text-2xl font-bold active:translate-y-1 active:border-b-0 shadow-lg">普通 (中速)</button>
+                    <button onclick="startGame('hard')" class="w-full py-4 bg-red-700 text-white rounded-lg border-b-4 border-red-900 text-2xl font-bold active:translate-y-1 active:border-b-0 shadow-lg">困難 (快速)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 遊戲畫面 -->
+    <div id="gameWrapper" class="hidden">
+        <canvas id="gameCanvas" width="224" height="256"></canvas>
+        
+        <!-- 手機控制 -->
+        <div id="mobileControls">
+            <div class="flex justify-between items-end w-full px-4 pb-6 max-w-3xl mx-auto control-zone">
+                <div class="d-pad-container">
+                    <div class="pixel-btn d-btn-up w-16 h-16 text-3xl" id="btnUp">▲</div>
+                    <div class="pixel-btn d-btn-left w-16 h-16 text-3xl" id="btnLeft">◀</div>
+                    <div class="pixel-btn d-btn-right w-16 h-16 text-3xl" id="btnRight">▶</div>
+                </div>
+                <div class="pl-4">
+                    <div class="pixel-btn w-24 h-24 rounded-full border-4 border-red-500 bg-red-900/60 text-2xl active:bg-red-600 font-bold" id="btnJump">跳</div>
+                </div>
+            </div>
+        </div>
+
+        <button onclick="togglePause()" class="absolute top-4 right-4 z-30 text-white text-base bg-gray-800/80 px-4 py-2 rounded border border-white/30 font-bold">暫停</button>
+        
+        <div id="pauseOverlay" class="hidden absolute top-0 left-0 w-full h-full bg-black/80 flex items-center justify-center z-40 backdrop-blur-sm">
+            <h2 class="text-white text-4xl blink font-bold tracking-widest">遊戲暫停</h2>
+        </div>
+        
+        <div id="gameOverOverlay" class="hidden absolute top-0 left-0 w-full h-full bg-black/90 flex flex-col items-center justify-center z-50">
+            <h2 id="gameOverTitle" class="text-red-500 text-5xl mb-6 font-bold shadow-black drop-shadow-md">遊戲結束</h2>
+            <p class="text-white text-2xl mb-10">最終得分: <span id="finalScore" class="text-yellow-400">0</span></p>
+            <button onclick="resetGame()" class="px-10 py-5 bg-blue-600 text-white text-2xl rounded-full border-b-4 border-blue-800 active:translate-y-1 font-bold shadow-[0_0_20px_rgba(37,99,235,0.6)]">再玩一次</button>
+        </div>
+
+        <!-- 教學朗讀遮罩 -->
+        <div id="learningOverlay">
+            <div id="learningWord">詞語</div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const GAME_W = 224;
+        const GAME_H = 256;
+        
+        // 預設干擾詞庫 (雙字詞)
+        const COMMON_WORDS = [
+            "我們", "你們", "他們", "大家", "老師", "學生", "學校", "朋友", "開心", "快樂", 
+            "生氣", "難過", "吃飯", "喝水", "睡覺", "起床", "太陽", "月亮", "星星", "天空",
+            "白雲", "下雨", "彩虹", "飛機", "火車", "公車", "單車", "桌子", "椅子", "電腦"
+        ];
+
+        let gameState = {
+            mode: 'menu', score: 0, highScore: 7650, bonus: 5000,
+            lives: 3,
+            hp: 5,
+            targets: [], distractors: [], 
+            currentWordIndex: 0,
+            collectCount: 0, 
+            targetCount: 3, 
+            spawnCounter: 0, 
+            distractorReachedCount: 0,
+            
+            settingTime: 180, 
+            timeLeft: 180,    
+            timeAccumulator: 0, 
+            
+            platforms: [], ladders: [], entities: [], 
+            player: { 
+                x: 20, y: 236, width: 12, height: 16, 
+                vx: 0, vy: 0, speed: 1.2, jumpPower: -2.1, 
+                grounded: false, climbing: false, facingRight: true, 
+                state: 'idle', frame: 0, iframe: 0 
+            },
+            lastTime: 0, spawnTimer: 0, spawnInterval: 3000, gravity: 0.15
+        };
+
+        const BARREL_SPEED = 1.0;
+        const COLORS = { bg: '#000000', girderMain: '#b53120', girderLight: '#ea9e22', ladder: '#40ffff', textRed: '#ff0000', textBlue: '#00ffff' };
+        
+        // 語音系統
+        const AUDIO = {
+            ctx: null,
+            init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
+            play(type) {
+                if (!this.ctx) return;
+                if (this.ctx.state === 'suspended') this.ctx.resume();
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.connect(gain); gain.connect(this.ctx.destination);
+                const now = this.ctx.currentTime;
+                if (type === 'jump') {
+                    osc.type = 'square'; osc.frequency.setValueAtTime(150, now); osc.frequency.linearRampToValueAtTime(300, now + 0.1);
+                    gain.gain.setValueAtTime(0.05, now); gain.gain.linearRampToValueAtTime(0, now + 0.1);
+                    osc.start(now); osc.stop(now + 0.1);
+                } else if (type === 'score') {
+                    osc.type = 'sine'; osc.frequency.setValueAtTime(600, now); osc.frequency.setValueAtTime(1200, now + 0.1);
+                    gain.gain.setValueAtTime(0.05, now); gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                    osc.start(now); osc.stop(now + 0.2);
+                } else if (type === 'hit') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, now); osc.frequency.linearRampToValueAtTime(50, now + 0.3);
+                    gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                } else if (type === 'levelUp') {
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(400, now); osc.frequency.linearRampToValueAtTime(800, now + 0.4);
+                    gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.4);
+                    osc.start(now); osc.stop(now + 0.4);
+                } else if (type === 'fire') {
+                    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, now); osc.frequency.linearRampToValueAtTime(50, now + 0.3);
+                    gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.3);
+                    osc.start(now); osc.stop(now + 0.3);
+                }
+            },
+            speak(text, callback) {
+                if ('speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const u = new SpeechSynthesisUtterance(text);
+                    u.lang = 'zh-TW'; 
+                    u.rate = 0.8; 
+                    u.onend = function() {
+                        if (callback) callback();
+                    };
+                    window.speechSynthesis.speak(u);
+                } else {
+                    if (callback) setTimeout(callback, 1500);
+                }
+            }
+        };
+
+        window.onload = function() {
+            checkUrlParams(); setupMobileControls();
+        };
+
+        // ========== 語詞解析函式 ==========
+        // 修改為：每一行視為一個完整的詞，不拆字
+        function parseInput(raw) {
+            if (!raw) return [];
+            raw = raw.trim();
+            // 使用換行或逗號作為分隔符
+            return raw.split(/[\n,，]+/).map(w => w.trim()).filter(w => w.length > 0);
+        }
+
+        function initLevel() {
+            gameState.platforms = []; gameState.ladders = [];
+            const addPlat = (x, y, w, slope = 0) => gameState.platforms.push({ x, y, w, h: 8, slope });
+            const s = 0.05; 
+
+            addPlat(0, 248, 224, -0.02); 
+            addPlat(0, 215, 195, s);     
+            addPlat(29, 180, 195, -s);   
+            addPlat(0, 145, 195, s);     
+            addPlat(29, 110, 195, -s);   
+            addPlat(0, 75, 160, 0.02);   
+            addPlat(90, 40, 48, 0);      
+
+            const addLad = (x, y, h, broken=false, oneWay=false) => gameState.ladders.push({x, y: y-h, w: 8, h, broken, oneWay});
+            
+            addLad(180, 248, 33, false, true); 
+            addLad(100, 248, 18, true); 
+            
+            addLad(45, 215 + (45*s), 35); 
+            addLad(120, 215 + (120*s), 20, true);
+            addLad(170, 180 + (170*(-s)) + 15, 35); 
+            addLad(45, 145 + (45*s), 35);
+            addLad(100, 110 + (100*(-s)) + 5, 35);
+            addLad(100, 75, 35); addLad(120, 75, 35);
+
+            gameState.player.x = 20; gameState.player.y = 232;
+        }
+
+        function startGame(diff) {
+            AUDIO.init();
+            document.getElementById('studentMenu').classList.add('hidden');
+            document.getElementById('gameWrapper').classList.remove('hidden');
+            if (diff === 'easy') gameState.spawnInterval = 4000;
+            if (diff === 'medium') gameState.spawnInterval = 3000;
+            if (diff === 'hard') gameState.spawnInterval = 2000;
+            
+            if(gameState.targets.length === 0) gameState.targets = ["蘋果"];
+            
+            gameState.timeLeft = gameState.settingTime;
+            gameState.timeAccumulator = 0;
+
+            gameState.mode = 'playing';
+            initLevel();
+            gameState.lastTime = performance.now();
+            requestAnimationFrame(gameLoop);
+            
+            promptNextTarget();
+        }
+
+        function promptNextTarget() {
+            const target = gameState.targets[gameState.currentWordIndex];
+            setTimeout(() => {
+                AUDIO.speak("請接: " + target);
+            }, 500);
+        }
+
+        function resetGame() {
+            gameState.score = 0;
+            gameState.lives = 3;
+            gameState.hp = 5; 
+            gameState.bonus = 5000;
+            gameState.currentWordIndex = 0;
+            gameState.collectCount = 0;
+            gameState.spawnCounter = 0;
+            gameState.distractorReachedCount = 0;
+            gameState.entities = [];
+            
+            gameState.timeLeft = gameState.settingTime;
+            gameState.timeAccumulator = 0;
+
+            gameState.mode = 'playing';
+            gameState.player.x = 20;
+            gameState.player.y = 232;
+            gameState.player.vx = 0;
+            gameState.player.vy = 0;
+            gameState.player.grounded = false;
+            gameState.player.climbing = false;
+            gameState.player.iframe = 0;
+            
+            gameState.lastTime = performance.now();
+            gameState.spawnTimer = 0;
+            
+            document.getElementById('gameOverOverlay').classList.add('hidden');
+            if(AUDIO.ctx && AUDIO.ctx.state === 'suspended') AUDIO.ctx.resume();
+            
+            requestAnimationFrame(gameLoop);
+            promptNextTarget();
+        }
+
+        function gameLoop(time) {
+            if (gameState.mode !== 'playing') {
+                if (gameState.mode === 'speaking') {
+                    draw();
+                    requestAnimationFrame(gameLoop);
+                    return;
+                }
+                return;
+            }
+            const deltaTimeMs = time - gameState.lastTime;
+            const dt = Math.min(deltaTimeMs / 16.67, 2); 
+            
+            gameState.lastTime = time;
+            update(dt, deltaTimeMs); 
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function update(dt, deltaTimeMs) {
+            gameState.timeAccumulator += deltaTimeMs;
+            if (gameState.timeAccumulator >= 1000) {
+                gameState.timeLeft--;
+                gameState.timeAccumulator -= 1000;
+                
+                if (gameState.timeLeft <= 0) {
+                    gameState.timeLeft = 0;
+                    document.getElementById('gameOverTitle').innerText = "時間到！";
+                    gameOver();
+                }
+            }
+
+            gameState.spawnTimer += dt * 16;
+            if (gameState.spawnTimer > gameState.spawnInterval) {
+                spawnRegularEntity();
+                gameState.spawnTimer = 0;
+            }
+            updatePlayer(dt);
+            updateEntities(dt);
+        }
+
+        function updatePlayer(dt) {
+            const p = gameState.player;
+            if (p.iframe > 0) p.iframe--;
+
+            let dx = 0;
+            if (keys['ArrowLeft'] || btnState.left) { dx = -1; p.facingRight = false; }
+            if (keys['ArrowRight'] || btnState.right) { dx = 1; p.facingRight = true; }
+            
+            let ladder = getLadderAt(p.x + p.width/2, p.y + p.height);
+            if (!ladder) ladder = getLadderAt(p.x + p.width/2, p.y + p.height + 4);
+            
+            if (ladder) {
+                if (keys['ArrowUp'] || btnState.up) {
+                    p.climbing = true;
+                    p.x = ladder.x - p.width/2 + 4;
+                }
+            }
+
+            if (p.climbing) {
+                p.vx = 0; p.vy = 0;
+                if (keys['ArrowUp'] || btnState.up) p.vy = -1;
+                p.y += p.vy * p.speed * dt;
+                
+                if (p.vy < 0 && !getLadderAt(p.x + p.width/2, p.y + p.height)) { 
+                    p.climbing = false; p.y -= 2; 
+                }
+            } else {
+                p.vx = dx * p.speed;
+                p.x += p.vx * dt;
+                
+                if ((keys['Space'] || btnState.jump) && p.grounded) {
+                    p.vy = p.jumpPower; p.grounded = false; AUDIO.play('jump'); keys['Space'] = false; btnState.jump = false;
+                }
+                p.vy += gameState.gravity * dt;
+                p.y += p.vy * dt;
+                checkPlatformCollision(p, dt); 
+            }
+
+            if (p.x < 0) p.x = 0;
+            if (p.x > GAME_W - p.width) p.x = GAME_W - p.width;
+            if (p.y > GAME_H) handleDeath(); 
+
+            // 公主判定
+            if (p.y < 70 && p.x > 80 && p.x < 140) {
+                reachPrincess();
+            }
+
+            if (p.climbing) { p.state = p.vy !== 0 ? 'climb' : 'idle_climb'; if (Math.floor(Date.now() / 150) % 2 === 0) p.frame = 1; else p.frame = 0; }
+            else if (!p.grounded) { p.state = 'jump'; }
+            else if (dx !== 0) { p.state = 'run'; if (Math.floor(Date.now() / 100) % 2 === 0) p.frame = 1; else p.frame = 0; }
+            else { p.state = 'idle'; }
+        }
+
+        function reachPrincess() {
+            gameState.score += 100;
+            AUDIO.play('score');
+            
+            gameState.player.x = 20;
+            gameState.player.y = 232;
+            gameState.player.vx = 0;
+            gameState.player.vy = 0;
+            
+            gameState.entities = [];
+            gameState.distractorReachedCount = 0;
+        }
+
+        function checkPlatformCollision(ent, dt) {
+            ent.grounded = false;
+            const footX = ent.x + ent.width / 2;
+            const footY = ent.y + ent.height;
+
+            for (let plat of gameState.platforms) {
+                if (footX >= plat.x && footX <= plat.x + plat.w) {
+                    const relX = footX - plat.x;
+                    const platYAtX = plat.y + (relX * plat.slope);
+                    
+                    if (footY >= platYAtX - 5 && footY <= platYAtX + 8 && ent.vy >= 0) {
+                        ent.y = platYAtX - ent.height;
+                        ent.vy = 0;
+                        ent.grounded = true;
+                        if (ent.type === 'barrel' && plat.slope !== 0) {
+                             ent.vx = (plat.slope > 0 ? 1 : -1) * BARREL_SPEED;
+                        }
+                        return;
+                    }
+                }
+            }
+        }
+
+        function getLadderAt(x, y) {
+            for (let l of gameState.ladders) {
+                if (!l.broken && x >= l.x - 6 && x <= l.x + l.w + 6 && y >= l.y && y <= l.y + l.h + 5) return l;
+            }
+            return null;
+        }
+
+        function spawnRegularEntity() {
+            const cycle = gameState.spawnCounter % 6; 
+            let isTarget = (cycle === 0);
+            spawnSpecificEntity(isTarget);
+            gameState.spawnCounter++;
+        }
+
+        function spawnForcedDistractor(distractorText) {
+             spawnSpecificEntity(false, distractorText);
+        }
+
+        function spawnSpecificEntity(isTarget, forcedText = null) {
+            const currentTarget = gameState.targets[gameState.currentWordIndex];
+            let text = "";
+            
+            if (isTarget) {
+                text = currentTarget;
+            } else {
+                if (forcedText) {
+                    text = forcedText;
+                } else if (gameState.distractors.length > 0) {
+                    text = gameState.distractors[Math.floor(Math.random() * gameState.distractors.length)];
+                } else {
+                    text = COMMON_WORDS[Math.floor(Math.random() * COMMON_WORDS.length)];
+                }
+            }
+
+            gameState.entities.push({
+                type: 'barrel',
+                x: 40, y: 70, width: 10, height: 10,
+                vx: BARREL_SPEED, vy: 0,
+                text: text, isTarget: isTarget,
+                grounded: false, rotation: 0
+            });
+        }
+
+        function spawnFireball(x, y) {
+            gameState.entities.push({
+                type: 'fireball',
+                x: x, y: y, width: 12, height: 12,
+                vx: (Math.random() > 0.5 ? 1 : -1) * 0.4, vy: 0,
+                grounded: false, climbing: false, frame: 0,
+                text: "", isTarget: false 
+            });
+            AUDIO.play('fire');
+        }
+
+        function updateEntities(dt) {
+            for (let i = gameState.entities.length - 1; i >= 0; i--) {
+                let e = gameState.entities[i];
+                
+                if (e.type === 'fireball') {
+                    if (e.climbing) {
+                        e.vy = -0.5; e.vx = 0; e.y += e.vy * dt;
+                        if (!getLadderAt(e.x + e.width/2, e.y + e.height)) {
+                            e.climbing = false; e.y -= 2; e.vy = 0;
+                            e.vx = (gameState.player.x > e.x) ? 0.4 : -0.4;
+                        }
+                    } else {
+                        e.vy += gameState.gravity * dt; e.x += e.vx * dt; e.y += e.vy * dt;
+                        checkPlatformCollision(e, dt);
+                        if (e.grounded && Math.random() < 0.02) e.vy = -2;
+                        if (e.x <= 0) e.vx = Math.abs(e.vx);
+                        if (e.x >= GAME_W - e.width) e.vx = -Math.abs(e.vx);
+                        if (e.grounded && Math.random() < 0.05) { 
+                            let lad = getLadderAt(e.x + e.width/2, e.y + e.height);
+                            if (lad && gameState.player.y < e.y - 20) { 
+                                e.climbing = true; e.x = lad.x - e.width/2 + 4; 
+                            }
+                        }
+                    }
+                    if (Math.floor(Date.now() / 200) % 2 === 0) e.frame = 1; else e.frame = 0;
+                } 
+                else if (e.type === 'barrel') {
+                    e.vy += gameState.gravity * dt; e.x += e.vx * dt; e.y += e.vy * dt;
+                    checkPlatformCollision(e, dt);
+                    e.rotation += e.vx * 0.2;
+                    if (e.x <= 0) { e.x = 0; e.vx = BARREL_SPEED; }
+                    else if (e.x >= GAME_W - e.width) { e.x = GAME_W - e.width; e.vx = -BARREL_SPEED; }
+
+                    if (e.y > 220 && e.x < 30 && e.grounded) {
+                        if (!e.isTarget) {
+                            gameState.distractorReachedCount++;
+                            if (gameState.distractorReachedCount >= 5) {
+                                spawnFireball(e.x, e.y);
+                                gameState.distractorReachedCount = 0;
+                            }
+                        }
+                        gameState.entities.splice(i, 1);
+                        continue;
+                    }
+                }
+
+                if (rectIntersect(gameState.player, e)) {
+                    if (!gameState.player.grounded && !e.isTarget) {
+                    } else if (e.isTarget) { 
+                        handleCollectCorrect(e.text);
+                        gameState.entities.splice(i, 1);
+                    } else {
+                        handleHit();
+                    }
+                }
+                
+                if (e.y > GAME_H + 50) gameState.entities.splice(i, 1);
+            }
+        }
+
+        function handleHit() {
+            if (gameState.player.iframe > 0) return;
+
+            AUDIO.play('hit');
+            gameState.hp--;
+            gameState.player.iframe = 60; 
+
+            if (gameState.hp <= 0) {
+                loseLife();
+            }
+        }
+
+        function loseLife() {
+            gameState.lives--;
+            gameState.hp = 5; 
+            gameState.score = Math.max(0, gameState.score - 200);
+            gameState.player.x = 20;
+            gameState.player.y = 232;
+            gameState.player.vx = 0;
+            gameState.player.vy = 0;
+            
+            if (gameState.lives <= 0) {
+                document.getElementById('gameOverTitle').innerText = "遊戲結束";
+                gameOver();
+            }
+        }
+
+        function handleCollectCorrect(text) {
+            gameState.collectCount++;
+            gameState.score += 500;
+            AUDIO.play('score');
+            
+            gameState.mode = 'speaking';
+            document.getElementById('learningWord').innerText = text;
+            document.getElementById('learningOverlay').style.display = 'block';
+            
+            AUDIO.speak(text, function() {
+                document.getElementById('learningOverlay').style.display = 'none';
+                gameState.mode = 'playing';
+                gameState.lastTime = performance.now();
+                if (gameState.collectCount >= gameState.targetCount) {
+                    nextLevel();
+                }
+            });
+        }
+
+        function handleDeath() {
+            loseLife();
+        }
+
+        function nextLevel() {
+            AUDIO.play('levelUp');
+            gameState.currentWordIndex++;
+            gameState.collectCount = 0;
+            gameState.entities = [];
+            
+            if (gameState.currentWordIndex >= gameState.targets.length) {
+                document.getElementById('gameOverTitle').innerText = "恭喜通關!";
+                gameOver();
+            } else {
+                gameState.player.x = 20;
+                gameState.player.y = 232;
+                promptNextTarget();
+            }
+        }
+
+        function rectIntersect(r1, r2) {
+            const padding = 2;
+            return !(r2.x > r1.x + r1.width - padding || 
+                     r2.x + r2.width < r1.x + padding || 
+                     r2.y > r1.y + r1.height - padding || 
+                     r2.y + r2.height < r1.y + padding);
+        }
+        function gameOver() { gameState.mode = 'gameover'; document.getElementById('finalScore').innerText = gameState.score; document.getElementById('gameOverOverlay').classList.remove('hidden'); }
+        function togglePause() { 
+            if(gameState.mode === 'playing'){ gameState.mode = 'paused'; document.getElementById('pauseOverlay').classList.remove('hidden'); }
+            else if(gameState.mode === 'paused'){ gameState.mode = 'playing'; document.getElementById('pauseOverlay').classList.add('hidden'); gameState.lastTime = performance.now(); requestAnimationFrame(gameLoop); }
+        }
+
+        function draw() {
+            ctx.fillStyle = COLORS.bg; ctx.fillRect(0, 0, GAME_W, GAME_H);
+
+            ctx.font = 'bold 10px "BiauKaiStandard"'; 
+            ctx.fillStyle = '#ff0000';
+            let hearts = "❤".repeat(Math.max(0, gameState.lives));
+            ctx.fillText("生命:" + hearts, 10, 12);
+            ctx.fillStyle = '#ffff00';
+            ctx.fillText(`忍耐: ${gameState.hp}/5`, 10, 24);
+            
+            ctx.fillStyle = '#fbbf24'; 
+            ctx.fillText(`時間: ${gameState.timeLeft}`, 10, 36);
+
+            ctx.fillStyle = '#FFF';
+            ctx.fillText("最高分", 100, 12);
+            ctx.fillStyle = COLORS.textRed; ctx.fillText(pad(gameState.score, 6), 100, 24); 
+            
+            ctx.font = 'bold 16px "BiauKaiStandard", "標楷體", serif';
+            ctx.fillStyle = COLORS.textBlue;
+            ctx.textAlign = "right";
+            const target = gameState.targets[gameState.currentWordIndex] || "WIN";
+            ctx.fillText("目標: " + target, GAME_W - 10, 24);
+            ctx.textAlign = "left"; 
+            
+            ctx.fillStyle = '#00ff00';
+            ctx.font = 'bold 10px "BiauKaiStandard"'; 
+            ctx.fillText(`進度: ${gameState.collectCount}/${gameState.targetCount}`, GAME_W - 10, 40);
+
+            drawGirders(); drawLadders();
+            drawOilDrum(10, 232); 
+            drawDonkeyKong(20, 43); drawPrincess(100, 24);
+            drawPlayer(); drawEntities();
+        }
+
+        function drawEntities() {
+            for(let e of gameState.entities) {
+                ctx.save(); ctx.translate(e.x + e.width/2, e.y + e.height/2);
+                if (e.type === 'barrel') {
+                    ctx.rotate(e.rotation);
+                    ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.fillStyle = '#8b4513'; ctx.fill(); ctx.strokeStyle = '#cd853f'; ctx.stroke();
+                    ctx.rotate(-e.rotation);
+                    
+                    ctx.fillStyle = '#ffffff'; 
+                    // 字體縮放邏輯
+                    let fontSize = e.text.length > 2 ? 10 : 14;
+                    ctx.font = `bold ${fontSize}px "BiauKaiStandard", "標楷體", serif`;
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.strokeStyle = 'black'; ctx.lineWidth = 3; ctx.strokeText(e.text, 0, 0); ctx.fillText(e.text, 0, 0);
+                } else if (e.type === 'fireball') {
+                    const c1 = e.frame === 0 ? '#ff0000' : '#ffaa00';
+                    ctx.fillStyle = c1; ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = '#0000ff'; ctx.beginPath(); ctx.arc(0, -2, 3, 0, Math.PI*2); ctx.fill();
+                    ctx.fillStyle = 'white'; ctx.fillRect(-3, -2, 2, 2); ctx.fillRect(1, -2, 2, 2);
+                }
+                ctx.restore();
+            }
+        }
+        
+        function drawGirders() {
+            for(let p of gameState.platforms) {
+                ctx.fillStyle = COLORS.girderMain;
+                ctx.beginPath();
+                const yEnd = p.y + (p.w * p.slope);
+                ctx.moveTo(p.x, p.y);
+                ctx.lineTo(p.x + p.w, yEnd);
+                ctx.lineTo(p.x + p.w, yEnd + p.h);
+                ctx.lineTo(p.x, p.y + p.h);
+                ctx.fill();
+
+                ctx.strokeStyle = COLORS.girderLight; ctx.lineWidth = 1; ctx.beginPath();
+                ctx.moveTo(p.x, p.y + 1); ctx.lineTo(p.x + p.w, yEnd + 1);
+                
+                let segments = p.w / 8;
+                for(let i=0; i<segments; i++) {
+                    let lx = p.x + i*8;
+                    let ly = p.y + (i*8 * p.slope);
+                    ctx.moveTo(lx, ly + 2); ctx.lineTo(lx + 4, ly + 6); ctx.lineTo(lx + 8, ly + 2);
+                }
+                ctx.stroke();
+            }
+        }
+
+        function drawLadders() {
+            ctx.fillStyle = COLORS.ladder;
+            for(let l of gameState.ladders) {
+                ctx.fillRect(l.x, l.y, 1, l.h); ctx.fillRect(l.x + l.w - 1, l.y, 1, l.h);
+                for(let y = l.y + 2; y < l.y + l.h; y+=4) ctx.fillRect(l.x, y, l.w, 1);
+                if (l.broken) { ctx.fillStyle = '#000'; ctx.fillRect(l.x-1, l.y + l.h/3, l.w+2, l.h/3); ctx.fillStyle = COLORS.ladder; }
+            }
+        }
+        function drawPlayer() {
+            const p = gameState.player; 
+            if (p.iframe > 0 && Math.floor(Date.now() / 50) % 2 === 0) return;
+            ctx.save();
+            ctx.translate(Math.round(p.x), Math.round(p.y));
+            if (!p.facingRight) { ctx.translate(p.width, 0); ctx.scale(-1, 1); }
+            const R = '#f00', B = '#22f', S = '#fb8';
+            ctx.fillStyle = R; ctx.fillRect(2, 0, 8, 2); ctx.fillStyle = S; ctx.fillRect(2, 2, 7, 3); 
+            ctx.fillStyle = '#000'; ctx.fillRect(7, 2, 2, 1); ctx.fillStyle = B; ctx.fillRect(3, 5, 6, 5); 
+            ctx.fillStyle = R; ctx.fillRect(1, 6, 2, 3); ctx.fillRect(9, 6, 2, 3);
+            ctx.fillStyle = R; if(p.state === 'run' && p.frame === 1) { ctx.fillRect(0, 10, 4, 3); ctx.fillRect(8, 10, 4, 3); } else { ctx.fillRect(2, 10, 8, 3); }
+            if(p.climbing) { ctx.fillStyle = '#f00'; ctx.fillRect(1,0,2,2); ctx.fillRect(9,0,2,2); } 
+            ctx.restore();
+        }
+        function drawDonkeyKong(x, y) {
+            ctx.fillStyle = '#d2691e'; ctx.fillRect(x, y, 40, 32); ctx.fillStyle = '#f4a460'; ctx.fillRect(x+10, y+5, 20, 15);
+            ctx.fillStyle = '#ffe4c4'; ctx.fillRect(x+12, y+2, 16, 8); ctx.fillStyle = '#000'; ctx.fillRect(x+15, y+4, 2, 2); ctx.fillRect(x+23, y+4, 2, 2);
+            ctx.fillStyle = '#fff'; ctx.fillRect(x+14, y+20, 12, 4);
+        }
+        function drawPrincess(x, y) {
+            ctx.fillStyle = '#ff69b4'; ctx.fillRect(x, y, 12, 16); ctx.fillStyle = '#ff0'; ctx.fillRect(x-2, y, 16, 4);
+            ctx.fillStyle = '#FFF'; ctx.font = '8px "BiauKaiStandard"'; ctx.fillText("救命!", x+16, y);
+        }
+        function drawOilDrum(x, y) {
+            ctx.fillStyle = '#0000aa'; ctx.fillRect(x, y, 16, 24);
+            ctx.fillStyle = '#aaaaff'; ctx.font = '6px "Press Start 2P"'; ctx.fillText("OIL", x+2, y+15);
+            if (Math.floor(Date.now()/200) % 2 === 0) {
+                ctx.fillStyle = '#ff4400'; ctx.font = '8px "Press Start 2P"'; ctx.fillText("FIRE", x-4, y-2);
+            }
+        }
+        function pad(num, size) { var s = "000000000" + num; return s.substr(s.length-size); }
+
+        const keys = {}; const btnState = { up: false, down: false, left: false, right: false, jump: false };
+        window.addEventListener('keydown', e => keys[e.code] = true); window.addEventListener('keyup', e => keys[e.code] = false);
+        function setupMobileControls() {
+            const bind = (id, key) => {
+                const el = document.getElementById(id);
+                el.addEventListener('touchstart', e => { e.preventDefault(); e.stopPropagation(); btnState[key] = true; el.classList.add('active'); }, {passive: false});
+                el.addEventListener('touchend', e => { e.preventDefault(); e.stopPropagation(); btnState[key] = false; el.classList.remove('active'); }, {passive: false});
+                el.addEventListener('mousedown', e => { btnState[key] = true; el.classList.add('active'); });
+                el.addEventListener('mouseup', e => { btnState[key] = false; el.classList.remove('active'); });
+                el.addEventListener('mouseleave', e => { btnState[key] = false; el.classList.remove('active'); });
+            };
+            bind('btnUp', 'up'); bind('btnLeft', 'left'); bind('btnRight', 'right'); bind('btnJump', 'jump');
+        }
+        
+        function generateGameLink() {
+            const rawTargets = document.getElementById('inputWords').value; 
+            const rawDistractors = document.getElementById('inputDistractors').value;
+            const time = document.getElementById('inputTime').value;
+            
+            const targets = parseInput(rawTargets);
+            const distractors = parseInput(rawDistractors);
+
+            const dataObj = { t: targets, d: distractors, tm: parseInt(time) }; 
+            const base64 = btoa(unescape(encodeURIComponent(JSON.stringify(dataObj))));
+            const url = location.protocol + '//' + location.host + location.pathname + '?d=' + base64;
+            
+            document.getElementById('shareSection').classList.remove('hidden'); 
+            document.getElementById('shareLink').value = url;
+            
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = ""; 
+            
+            setTimeout(() => {
+                try {
+                    if (typeof QRCode === 'undefined') {
+                        qrContainer.innerHTML = "<span class='text-red-500 font-bold'>錯誤：QR Code 函式庫未載入</span>";
+                        return;
+                    }
+                    new QRCode(qrContainer, { 
+                        text: url, 
+                        width: 160, 
+                        height: 160, 
+                        colorDark : "#000000", 
+                        colorLight : "#ffffff", 
+                        correctLevel : QRCode.CorrectLevel.L
+                    });
+                } catch(e) {
+                    qrContainer.innerHTML = "<span class='text-red-500'>生成失敗，請檢查網址長度</span>";
+                }
+            }, 150);
+        }
+        
+        function checkUrlParams() {
+            const params = new URLSearchParams(location.search); 
+            if (params.get('d')) { 
+                try { 
+                    const json = decodeURIComponent(escape(atob(params.get('d')))); 
+                    const data = JSON.parse(json); 
+                    gameState.targets = data.t; 
+                    gameState.distractors = data.d || []; 
+                    gameState.settingTime = data.tm || 180;
+                    document.getElementById('teacherPanel').classList.add('hidden'); 
+                    document.getElementById('studentMenu').classList.remove('hidden'); 
+                } catch(e) { console.error(e); } 
+            }
+        }
+        function copyLink() { const c = document.getElementById("shareLink"); c.select(); c.setSelectionRange(0, 99999); document.execCommand("copy"); alert("連結已複製"); }
+        function enterStudentMode() { 
+            const rawT = document.getElementById('inputWords').value; 
+            const rawD = document.getElementById('inputDistractors').value;
+            const time = document.getElementById('inputTime').value;
+            gameState.targets = parseInput(rawT);
+            gameState.distractors = parseInput(rawD);
+            gameState.settingTime = parseInt(time);
+            if(gameState.targets.length === 0) gameState.targets = ["蘋果", "香蕉"]; 
+            document.getElementById('teacherPanel').classList.add('hidden'); 
+            document.getElementById('studentMenu').classList.remove('hidden'); 
+        }
+    </script>
+</body>
+</html>
