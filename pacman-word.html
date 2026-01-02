@@ -5,10 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <title>皮卡丘迷宮 (道具+大字完整版)</title>
+    <title>皮卡丘迷宮 (生字完整版)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Klee+One:wght@400;600&display=swap" rel="stylesheet">
+    <!-- 引入 QR Code 生成庫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     
     <style>
         * { 
@@ -88,7 +90,7 @@
             width: 90%; max-width: 500px; text-align: center; max-height: 80vh;
             overflow-y: auto; display: flex; flex-direction: column; gap: 10px;
         }
-        textarea, input[type="number"] {
+        textarea, input[type="number"], input[type="text"] {
             padding: 10px; font-size: 1.1rem; width: 100%;
             border: 2px solid #ccc; border-radius: 10px; resize: none;
             -webkit-user-select: text; user-select: text;
@@ -112,8 +114,13 @@
             left: 50%; transform: translateX(-50%); 
             background: rgba(0,0,0,0.6); border: 2px solid #3498db;
             padding: 5px 15px; border-radius: 20px; color: #fff;
-            white-space: nowrap;
+            white-space: nowrap; display: flex; flex-direction: column; align-items: center;
         }
+        #target-word-container {
+             color:#f1c40f; font-size:1.4em; font-weight:bold; margin-left:5px;
+             max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+        }
+
         #lives-board { 
             position: absolute; top: 50px; left: 15px; 
             color: #e74c3c; font-size: 1.2rem;
@@ -149,16 +156,17 @@
             background: rgba(0,0,0,0.85); 
             border: 5px solid #f1c40f; 
             border-radius: 50%; 
-            width: 140px; height: 140px;
+            width: 160px; height: 160px;
             color: #f1c40f; 
-            font-size: 4.5rem; 
+            font-size: 5rem; /* 單字版字體大一點 */
             font-weight: bold;
             z-index: 100; 
             pointer-events: none; 
             transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             display: flex; justify-content: center; align-items: center;
             box-shadow: 0 0 50px rgba(241, 196, 15, 0.8);
-            text-shadow: 2px 2px 0 #000;
+            text-shadow: 3px 3px 0 #000;
+            text-align: center; padding: 10px;
         }
         .popup-visible { transform: translate(-50%, -50%) scale(1) !important; }
 
@@ -183,7 +191,14 @@
         #d-right { grid-column: 3; grid-row: 2; border-radius: 0 15px 15px 0; }
         #d-down { grid-column: 2; grid-row: 3; border-radius: 0 0 15px 15px; }
         
-        #qr-code-img { max-width: 150px; display: block; margin: 10px auto; border: 5px solid white; }
+        #qr-code-canvas { 
+            max-width: 200px; 
+            display: none; 
+            margin: 15px auto; 
+            border: 8px solid white; 
+            background: white; 
+            border-radius: 5px; 
+        }
     </style>
 </head>
 <body>
@@ -195,7 +210,8 @@
         <div id="score-board" class="hud-panel">SCORE: 0</div>
         <div id="timer-board" class="hud-panel">120</div>
         <div id="target-display" class="hud-panel">
-            找: <span id="current-target-char" style="color:#f1c40f; font-size:1.4em; font-weight:bold; margin-left:5px;">?</span>
+            <div style="font-size:0.8em; margin-bottom:-5px;">請找：</div>
+            <div id="target-word-container">?</div>
             <div id="level-progress">0 / 5</div>
         </div>
         <div id="lives-board" class="hud-panel">❤️❤️❤️</div>
@@ -218,10 +234,10 @@
 
     <!-- Screens -->
     <div id="start-screen" class="ui-screen">
-        <h1>皮卡丘<br>迷宮接字樂</h1>
+        <h1>皮卡丘<br>迷宮接字樂 (生字版)</h1>
         <button class="btn" onclick="Game.showTeacherPanel()">我是老師 (出題)</button>
         <button class="btn btn-secondary" onclick="Game.showSetupScreen(false)">開始遊戲</button>
-        <div style="color:#aaa; font-size:0.8rem; margin-top:20px; opacity: 0.7;">V11.3 修正QR版 (修復錯誤)</div>
+        <div style="color:#aaa; font-size:0.8rem; margin-top:20px; opacity: 0.7;">V11.5 Char Edition</div>
     </div>
 
     <div id="setup-screen" class="ui-screen hidden">
@@ -248,22 +264,21 @@
         </div>
 
         <button class="btn" style="margin-top: 20px;" onclick="Game.startFromSetup()">GO! 出發</button>
-        <!-- Added ID for control -->
         <button id="setup-back-btn" class="btn btn-secondary" onclick="Game.showMenu()">返回</button>
     </div>
 
     <div id="teacher-screen" class="ui-screen hidden">
         <div class="panel">
-            <h2>出題設定</h2>
+            <h2>生字出題設定</h2>
             
             <div style="text-align:left; font-size:0.9rem; font-weight:bold;">1. 遊戲限時 (秒)：</div>
             <input type="number" id="time-limit-input" value="120" min="30" max="600">
             
-            <div style="text-align:left; font-size:0.9rem; font-weight:bold; margin-top:10px;">2. 目標文字 (每關輪流一個字)：</div>
+            <div style="text-align:left; font-size:0.9rem; font-weight:bold; margin-top:10px;">2. 目標生字 (每關輪流一個字)：</div>
             <textarea id="target-input" placeholder="例如：愛我人日月星">愛我人</textarea>
             
             <div style="text-align:left; font-size:0.9rem; font-weight:bold;">3. 自訂干擾字 (每關配5個)：</div>
-            <textarea id="distractor-input" placeholder="例如：犬太天 (AI會自動補足5個)"></textarea>
+            <textarea id="distractor-input" placeholder="例如：犬太天 (AI會自動補足)"></textarea>
             
             <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:10px;">
                 <button class="btn" onclick="Game.saveSettings()">儲存並返回</button>
@@ -271,8 +286,8 @@
             </div>
             
             <div id="share-section" style="display:none; border-top:1px dashed #eee; padding-top:10px; width:100%;">
-                <img id="qr-code-img" alt="QR" src="" onerror="this.style.display='none';alert('QR Code 生成失敗，請檢查網路');">
-                <div style="font-size:0.8rem; color:#666; margin-bottom:5px;">請學生掃描或分享連結:</div>
+                <canvas id="qr-code-canvas"></canvas>
+                <div style="font-size:0.8rem; color:#666; margin:5px 0;">請學生掃描或分享連結:</div>
                 <input type="text" id="share-link-box" readonly onclick="this.select(); document.execCommand('copy');" style="width:100%; padding:8px; border-radius:5px; border:1px solid #ddd;">
             </div>
             <button class="btn btn-secondary" onclick="Game.showMenu()">返回</button>
@@ -289,11 +304,13 @@
 </div>
 
 <script>
+// 形近字資料庫 (生字版專用)
 const CONFUSING_DB = {
     '人': ['入', '八', '大'], '入': ['人', '八'], '大': ['太', '犬', '天'], 
     '天': ['夫', '大', '夭'], '日': ['曰', '目', '白'], '木': ['本', '禾', '术'], 
     '我': ['找', '錢', '淺'], '愛': ['受', '暖', '憂'], '右': ['石', '左', '古'], 
-    '左': ['右', '在'], '因': ['困', '回'], '買': ['賣', '貝']
+    '左': ['右', '在'], '因': ['困', '回'], '買': ['賣', '貝'],
+    '手': ['毛', '于'], '毛': ['手', '乇'], '牛': ['午', '生'], '午': ['牛', '干']
 };
 const COMMON_CHARS = "的一是在不了有和人這中大為上個國我向要他時來用們生到作地於出就分對成會可主發年動同工也能下過子說產種面而方後多定行學法所民得經十三之進著等部度家更完樣今育提求治以流現五內聖";
 
@@ -340,7 +357,7 @@ const Game = {
     player: { x: 0, y: 0, dir: {x:0, y:0}, nextDir: {x:0, y:0}, charType: 'pikachu' },
     ghosts: [],
     items: [],
-    powerUps: [], // Array for active powerups on map
+    powerUps: [], 
     collectedInLevel: 0, 
     
     // Effects
@@ -396,11 +413,8 @@ const Game = {
         
         const sW = Math.floor((maxW - 20) / 19);
         const sH = Math.floor((maxH - reservedHeight) / 19); 
-        
-        // FIX: Ensure gridSize is at least 12 to avoid negative radius
         this.gridSize = Math.max(12, Math.min(sW, sH, 40)); 
         this.halfTile = this.gridSize / 2;
-        
         this.canvas.width = this.gridSize * 19;
         this.canvas.height = this.gridSize * 19;
         if (this.state !== 'playing') this.draw();
@@ -412,7 +426,12 @@ const Game = {
         const d = p.get('dist');
         const t = p.get('time');
         let f = false;
-        if(w) { this.targetList = decodeURIComponent(w).split(''); document.getElementById('target-input').value = this.targetList.join(''); f = true; }
+        if(w) { 
+            // Parsing for CHARACTERS (split by empty string)
+            this.targetList = decodeURIComponent(w).split(''); 
+            document.getElementById('target-input').value = this.targetList.join(''); 
+            f = true; 
+        }
         if(d) {
              this.manualDistractors = decodeURIComponent(d).split('').filter(c=>/[^\s,]/.test(c));
              document.getElementById('distractor-input').value = this.manualDistractors.join('');
@@ -430,7 +449,6 @@ const Game = {
         const diff = document.querySelector('input[name="diff-select"]:checked').value;
         const char = document.querySelector('input[name="char-select"]:checked').value;
         
-        // Read Time Limit from Teacher Panel (or use default)
         const timeInput = parseInt(document.getElementById('time-limit-input').value);
         this.timeLimit = (timeInput && timeInput > 0) ? timeInput : 120;
         
@@ -468,13 +486,10 @@ const Game = {
             }
             this.updateHUD();
             
-            // Random PowerUp Spawn logic (Checked every second)
-            // Increased chance slightly to 0.15 (15%) per second if few items
             if (this.powerUps.length < 2 && Math.random() < 0.15) { 
                 this.spawnPowerUp();
             }
             
-            // Effect Timers
             if(this.freezeTimer > 0) this.freezeTimer--;
             if(this.speedBoostTimer > 0) this.speedBoostTimer--;
             
@@ -488,9 +503,8 @@ const Game = {
         
         this.resetPositions();
         this.spawnItems();
-        this.powerUps = []; // Clear powerups on new level
+        this.powerUps = []; 
         this.updateHUD();
-        // Removed showToast call here
         this.announceTarget();
     },
 
@@ -537,11 +551,9 @@ const Game = {
         const t = this.getRandomWalkableTile();
         if(t) {
             const gs = this.gridSize; const ht = this.halfTile;
-            // Check if position overlaps with existing items
             const x = t.c*gs + ht;
             const y = t.r*gs + ht;
             
-            // Basic collision check against existing items to avoid overlap
             const overlap = this.items.some(i => Math.abs(i.x - x) < 5 && Math.abs(i.y - y) < 5);
             if(!overlap) {
                 this.powerUps.push({x: x, y: y, type: type});
@@ -554,6 +566,7 @@ const Game = {
         let validTiles = [];
         let pool = [];
         
+        // --- Single Char Logic ---
         if (this.manualDistractors.length > 0) {
             for (let i = 0; i < 5; i++) {
                 if (i < this.manualDistractors.length) {
@@ -574,7 +587,7 @@ const Game = {
             pool = pool.slice(0, 5); 
         }
         
-        // Find Spots logic (simplified repeat)
+        // Find Spots
         for(let r=0; r<19; r++){
             for(let c=0; c<19; c++){
                 if(MAZE_MAP[r][c] === 0) {
@@ -591,16 +604,18 @@ const Game = {
         }
         
         const gs = this.gridSize; const ht = this.halfTile;
+        // Targets
         for(let i=0; i<10; i++) {
             if(!validTiles.length) break;
             let t = validTiles.pop();
-            this.items.push({x: t.c*gs + ht, y: t.r*gs + ht, char: this.currentTarget, type:'target'});
+            this.items.push({x: t.c*gs + ht, y: t.r*gs + ht, text: this.currentTarget, type:'target'});
         }
+        // Distractors
         for(let i=0; i<5; i++) {
             if(!validTiles.length) break;
             let t = validTiles.pop();
             let char = pool[i]; 
-            this.items.push({x: t.c*gs + ht, y: t.r*gs + ht, char: char, type:'distractor'});
+            this.items.push({x: t.c*gs + ht, y: t.r*gs + ht, text: char, type:'distractor'});
         }
     },
 
@@ -648,7 +663,7 @@ const Game = {
             if (isPlayer) {
                 if (ent.nextDir.x !== 0 || ent.nextDir.y !== 0) {
                     if (this.isWalkable(gx + ent.nextDir.x, gy + ent.nextDir.y)) ent.dir = ent.nextDir;
-                    else if (this.isWalkable(gx + ent.dir.x, gy + ent.dir.y)) {} // Keep going
+                    else if (this.isWalkable(gx + ent.dir.x, gy + ent.dir.y)) {} 
                     else { ent.dir = {x:0, y:0}; moveAmt = 0; }
                 } else { ent.dir = {x:0, y:0}; moveAmt = 0; }
             } else {
@@ -706,7 +721,7 @@ const Game = {
     checkCollisions() {
         const r = this.gridSize * 0.4;
         
-        // Items
+        // Items (Single Char)
         for(let i=this.items.length-1; i>=0; i--) {
             const it = this.items[i];
             const dist = Math.sqrt(Math.pow(this.player.x - it.x, 2) + Math.pow(this.player.y - it.y, 2));
@@ -716,8 +731,8 @@ const Game = {
                     this.score += 50;
                     this.collectedInLevel++;
                     this.playSound('good');
-                    this.speak(it.char);
-                    this.showPopup(it.char); // NEW: Show popup
+                    this.speak(it.text);
+                    this.showPopup(it.text); 
                     if (this.collectedInLevel >= 5) {
                         this.playSound('levelup');
                         this.targetIndex++;
@@ -739,14 +754,14 @@ const Game = {
             const dist = Math.sqrt(Math.pow(this.player.x - p.x, 2) + Math.pow(this.player.y - p.y, 2));
             if(dist < r + 8) {
                 this.powerUps.splice(i, 1);
-                this.playSound('good'); // Reuse good sound for now
+                this.playSound('good');
                 
                 if (p.type === 'coin') {
                     this.score += 200;
                 } else if (p.type === 'clock') {
-                    this.freezeTimer = 5; // 5 Seconds
+                    this.freezeTimer = 5;
                 } else if (p.type === 'rocket') {
-                    this.speedBoostTimer = 5; // 5 Seconds
+                    this.speedBoostTimer = 5;
                 }
                 this.updateHUD();
             }
@@ -812,11 +827,11 @@ const Game = {
             ctx.fillText(icon, p.x, p.y + 2);
         });
 
-        // Items
+        // Items (Single Chars)
         ctx.font = `bold ${gs*0.7}px "Klee One", sans-serif`; 
         this.items.forEach(i => {
             ctx.fillStyle = '#ffffff'; 
-            ctx.fillText(i.char, i.x, i.y + 1); 
+            ctx.fillText(i.text, i.x, i.y + 1); 
         });
         
         // Player & Ghosts
@@ -828,7 +843,6 @@ const Game = {
         const ctx = this.ctx;
         ctx.save(); ctx.translate(x, y);
         
-        // FIX: Ensure radius is never negative
         const rSafe = Math.max(0.1, s/2 - 2); 
 
         if(type === 'player') {
@@ -837,17 +851,15 @@ const Game = {
             ctx.rotate(angle);
             ctx.fillStyle = '#f1c40f'; 
             
-            // Speed Boost Visual
             if(this.speedBoostTimer > 0) {
                  ctx.shadowBlur = 10; ctx.shadowColor = 'white';
             }
 
             ctx.beginPath();
             const m = Math.abs(Math.sin(Date.now()/100))*0.5;
-            // Use safe radius here
             ctx.arc(0,0, rSafe, m, Math.PI*2-m); ctx.lineTo(0,0); ctx.fill();
             
-            ctx.shadowBlur = 0; // Reset shadow
+            ctx.shadowBlur = 0; 
             
             ctx.rotate(-angle);
             ctx.fillStyle='#c0392b'; ctx.font=`${s*0.5}px Arial`; ctx.textAlign='center'; ctx.textBaseline='middle';
@@ -857,14 +869,12 @@ const Game = {
             if(this.player.charType==='mario') icon='M';
             ctx.fillText(icon, 0, 1); 
         } else {
-            // Freeze Visual
             if (this.freezeTimer > 0) {
-                ctx.fillStyle = '#3498db'; // Frozen color
+                ctx.fillStyle = '#3498db'; 
             } else {
                 ctx.fillStyle = color;
             }
             
-            // Use safe radius here as well
             ctx.beginPath(); ctx.arc(0, -s/10, rSafe, Math.PI, 0);
             ctx.lineTo(s/2-2, s/2-2); ctx.lineTo(-s/2+2, s/2-2); ctx.fill();
             ctx.fillStyle='white'; 
@@ -883,12 +893,11 @@ const Game = {
     
     updateHUD() {
         document.getElementById('score-board').innerText = `SCORE: ${this.score}`;
-        document.getElementById('current-target-char').innerText = this.currentTarget;
+        document.getElementById('target-word-container').innerText = this.currentTarget;
         document.getElementById('lives-board').innerText = "❤️".repeat(this.lives);
         document.getElementById('mistake-board').innerText = `干擾: ${this.mistakes}/3`;
         document.getElementById('mistake-board').style.color = this.mistakes>=2?'#e74c3c':'#f39c12';
         
-        // Timer display
         const tb = document.getElementById('timer-board');
         tb.innerText = this.timeLeft;
         tb.style.color = this.timeLeft <= 10 ? '#e74c3c' : '#fff';
@@ -896,7 +905,6 @@ const Game = {
         const displayCount = Math.min(this.collectedInLevel, 5);
         document.getElementById('level-progress').innerText = `${displayCount} / 5`;
         
-        // Buff Indicator
         const buffEl = document.getElementById('buff-indicator');
         buffEl.innerHTML = '';
         if(this.speedBoostTimer > 0) buffEl.innerHTML += `<div class="buff-icon">🚀 ${this.speedBoostTimer}</div>`;
@@ -906,12 +914,11 @@ const Game = {
     announceTarget() { if('speechSynthesis' in window) { const u=new SpeechSynthesisUtterance(`請找，${this.currentTarget}`); u.lang='zh-TW'; window.speechSynthesis.speak(u); }},
     speak(t) { if('speechSynthesis' in window) { window.speechSynthesis.cancel(); const u=new SpeechSynthesisUtterance(t); u.lang='zh-TW'; window.speechSynthesis.speak(u); }},
     
-    // Popup Logic
-    showPopup(char) {
+    showPopup(text) {
         const p = document.getElementById('center-popup');
-        p.innerText = char;
+        p.innerText = text;
         p.classList.add('popup-visible');
-        setTimeout(() => p.classList.remove('popup-visible'), 800); // 0.8s display
+        setTimeout(() => p.classList.remove('popup-visible'), 800); 
     },
 
     playSound(t) {
@@ -933,7 +940,6 @@ const Game = {
     showSetupScreen(s) { 
         this.toggleScreen('setup-screen'); 
         document.getElementById('teacher-msg').style.display=s?'block':'none'; 
-        // Hide back button if student link mode (s=true)
         const backBtn = document.getElementById('setup-back-btn');
         if(backBtn) backBtn.style.display = s ? 'none' : 'inline-block';
     },
@@ -951,26 +957,37 @@ const Game = {
         const d=document.getElementById('distractor-input').value.trim();
         const time=document.getElementById('time-limit-input').value;
         if(t) { 
-            this.targetList=t.replace(/\s/g,'').split(''); 
-            this.manualDistractors=d?d.replace(/\s/g,'').split(''):[];
+            // Save logic for Chars (no separators)
+            this.targetList = t.replace(/\s/g,'').split(''); 
+            this.manualDistractors = d?d.replace(/\s/g,'').split(''):[];
             if(time) this.timeLimit = parseInt(time);
             this.showSetupScreen(false); 
-        } else alert("請輸入題目");
+        } else alert("請輸入生字");
     },
     generateShareLink() {
+        // Link generation for Chars (no separators)
         const t=document.getElementById('target-input').value.trim().replace(/\s/g,'');
         const d=document.getElementById('distractor-input').value.trim().replace(/\s/g,',');
         const time=document.getElementById('time-limit-input').value;
         
         if(!t) return alert("請輸入文字");
-        // FIX: Use window.location.href to ensure correct base URL and avoid origin issues
         let baseUrl = window.location.href.split('?')[0];
         let u=`${baseUrl}?words=${encodeURIComponent(t)}&time=${time}`;
         if(d) u+=`&dist=${encodeURIComponent(d)}`;
         
         document.getElementById('share-section').style.display='block';
         document.getElementById('share-link-box').value=u;
-        document.getElementById('qr-code-img').src=`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(u)}`;
+        
+        // Generate QR
+        const canvas = document.getElementById('qr-code-canvas');
+        canvas.style.display = 'block';
+        new QRious({
+            element: canvas,
+            value: u,
+            size: 200,
+            background: 'white',
+            foreground: 'black'
+        });
     }
 };
 
