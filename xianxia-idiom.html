@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>成語仙俠傳：御劍衛道 (教學版)</title>
+    <style>
+        :root {
+            --bg-color: #2b2b2b;
+            --paper-color: #f4ecd8;
+            --panel-color: #3e2723;
+            --accent-color: #c62828;
+            --gold-color: #ffd700;
+            --cyan-light: #e0f7fa;
+            --cyan-dark: #006064;
+            --text-color: #f4ecd8;
+            /* 標楷體字體堆疊 */
+            --kai-font: "BiauKai", "DFKai-SB", "KaiU", "標楷體", "STKaiti", "Kaiti TC", "Kai", "AR PL UKai TW", "AR PL UKai CN", serif;
+            /* 像素字體堆疊 */
+            --pixel-font: 'Press Start 2P', var(--kai-font), cursive;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--kai-font);
+            font-weight: bold;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            image-rendering: pixelated; 
+            image-rendering: crisp-edges;
+        }
+
+        /* --- 畫面切換 --- */
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 10;
+        }
+        .screen.active {
+            display: flex;
+        }
+
+        /* --- 1. 設定畫面 --- */
+        #setup-screen {
+            background: 
+                linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),
+                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="%23263238"/><path d="M0 0 L100 100 M100 0 L0 100" stroke="%2337474f" stroke-width="1"/></svg>');
+            padding: 20px;
+            text-align: center;
+            z-index: 20;
+        }
+        
+        #setup-screen h1 {
+            font-size: 3rem;
+            color: var(--cyan-light);
+            text-shadow: 4px 4px 0 var(--cyan-dark);
+            margin-bottom: 20px;
+            font-family: var(--kai-font);
+        }
+
+        .scroll-paper {
+            background: var(--paper-color);
+            color: #333;
+            padding: 20px;
+            border: 4px solid #546e7a;
+            box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        textarea {
+            width: 100%;
+            height: 200px;
+            background: #eceff1;
+            border: 4px solid #78909c;
+            color: #37474f;
+            padding: 10px;
+            font-size: 1.2rem;
+            font-family: var(--kai-font);
+            font-weight: bold;
+            resize: none;
+            outline: none;
+        }
+        
+        .btn {
+            background: #00bcd4;
+            border: 4px solid #00838f;
+            color: white;
+            font-family: var(--kai-font);
+            font-size: 1.5rem;
+            padding: 15px 30px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #006064;
+            margin: 10px;
+            text-shadow: 2px 2px 0 #006064;
+        }
+        .btn:active { transform: translateY(6px); box-shadow: none; }
+        .btn-secondary { background: #607d8b; border-color: #455a64; box-shadow: 0 6px 0 #263238; text-shadow: 2px 2px 0 #263238; }
+
+        #qr-container {
+            background: white;
+            padding: 15px;
+            border: 6px solid var(--cyan-dark);
+            margin-top: 20px;
+            display: none;
+            image-rendering: pixelated;
+        }
+        #qr-image { width: 250px; height: 250px; image-rendering: pixelated; }
+
+        /* --- 2. 遊戲主畫面 --- */
+        #game-screen {
+            justify-content: space-between;
+            background: #2b2b2b;
+        }
+
+        /* 上半部：像素雲端戰場 */
+        .battle-stage {
+            flex: 1;
+            width: 100%;
+            background: repeating-linear-gradient(to bottom, #aed6f1, #aed6f1 4px, #85c1e9 4px, #85c1e9 8px); 
+            position: relative;
+            overflow: hidden;
+            border-bottom: 8px solid #34495e;
+        }
+        
+        .cloud-bg {
+            position: absolute;
+            top: 0; left: 0; width: 200%; height: 100%;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 200 100" shape-rendering="crispEdges"><rect x="20" y="60" width="60" height="20" fill="white" opacity="0.6"/><rect x="30" y="50" width="40" height="10" fill="white" opacity="0.6"/><rect x="100" y="70" width="80" height="20" fill="white" opacity="0.7"/><rect x="110" y="60" width="60" height="10" fill="white" opacity="0.7"/><rect x="160" y="40" width="30" height="10" fill="white" opacity="0.5"/><rect x="165" y="35" width="20" height="5" fill="white" opacity="0.5"/></svg>');
+            background-size: 400px 200px;
+            animation: drift 30s linear infinite;
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.8;
+        }
+        @keyframes drift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+        /* HUD */
+        .hud-bar {
+            position: absolute;
+            top: 15px; left: 15px; right: 15px;
+            display: flex; justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+            font-size: 1.3rem;
+            text-shadow: 2px 2px 0 #000;
+            color: #fff;
+            pointer-events: none;
+            font-family: var(--kai-font);
+        }
+
+        #score-display {
+            color: #ffd700;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 5px 10px;
+            border: 4px solid #fff;
+        }
+
+        /* --- 主角 --- */
+        #hero-container {
+            position: absolute;
+            bottom: 15%; 
+            left: 10%;
+            width: 96px;
+            height: 96px;
+            z-index: 5;
+            transition: transform 0.1s;
+        }
+
+        .pixel-hero {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(4px 4px 0 rgba(0,0,0,0.5));
+            shape-rendering: crispEdges;
+        }
+        
+        .pixel-hero-idle { animation: pixelIdle 1s steps(2) infinite; }
+        @keyframes pixelIdle { 0% { transform: translateY(0); } 100% { transform: translateY(-4px); } }
+
+        .hero-attacking .pixel-hero { animation: pixelAttack 0.3s steps(4); }
+        @keyframes pixelAttack { 
+            0% { transform: translateX(0); } 
+            25% { transform: translateX(10px) rotate(-5deg); }
+            50% { transform: translateX(20px) rotate(5deg); }
+            100% { transform: translateX(0); } 
+        }
+
+        #hero-speech {
+            position: absolute;
+            bottom: 110%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #fff;
+            color: #000;
+            padding: 5px 10px;
+            border: 4px solid #000;
+            font-weight: bold;
+            font-size: 1.2rem;
+            white-space: nowrap;
+            opacity: 0;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
+            pointer-events: none;
+            font-family: var(--kai-font);
+            image-rendering: pixelated;
+        }
+        .show-speech { opacity: 1 !important; animation: floatUpPixel 1s steps(10) forwards; }
+
+        /* --- 怪物 --- */
+        .monster {
+            position: absolute;
+            bottom: 15%; 
+            width: 80px; height: 80px;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 4;
+            transition: transform 0.1s;
+        }
+        .pixel-monster {
+            width: 100%; height: 100%;
+            filter: drop-shadow(4px 4px 0 rgba(0,0,0,0.5));
+            shape-rendering: crispEdges;
+            animation: monsterWalk 0.8s steps(4) infinite;
+        }
+        @keyframes monsterWalk { 0% { transform: translateY(0); } 50% { transform: translateY(-6px); } 100% { transform: translateY(0); } }
+
+        .monster.dead { animation: pixelDissolve 0.5s steps(5) forwards; }
+        @keyframes pixelDissolve { 
+            0% { opacity: 1; transform: scale(1); filter: brightness(1); } 
+            100% { opacity: 0; transform: scale(1.2); filter: brightness(5) sepia(1) contrast(2); } 
+        }
+        
+        .monster.boss-size { width: 128px; height: 128px; bottom: 12%; z-index: 5; }
+        .monster.boss-size .pixel-monster { filter: drop-shadow(6px 6px 0 rgba(0,0,0,0.6)); }
+
+        .score-float {
+            position: absolute;
+            color: #ffd700;
+            font-family: var(--pixel-font);
+            font-size: 1.2rem;
+            text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+            animation: floatScorePixel 0.8s steps(8) forwards;
+            pointer-events: none;
+            z-index: 20;
+        }
+        @keyframes floatScorePixel {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-60px); opacity: 0; }
+        }
+
+        .projectile {
+            position: absolute;
+            width: 48px; height: 48px;
+            z-index: 6;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" shape-rendering="crispEdges"><path d="M2 20 L4 22 L22 4 L20 2 Z" fill="%23ffd700"/><path d="M5 17 L7 19 L19 7 L17 5 Z" fill="%23fff"/><rect x="1" y="19" width="4" height="4" fill="%23c62828"/></svg>');
+            background-size: contain;
+            filter: drop-shadow(2px 2px 0 #c62828);
+            transition: left 0.3s linear, top 0.3s linear;
+        }
+
+        /* 下半部：操作台 */
+        .control-panel {
+            height: 50vh;
+            background: #34495e;
+            width: 100%;
+            display: flex; flex-direction: column; padding: 15px;
+            box-shadow: 0 -8px 0 rgba(0,0,0,0.5);
+            border-top: 8px solid #2c3e50;
+        }
+
+        .input-display-area {
+            display: flex; justify-content: center; margin-bottom: 15px; gap: 10px;
+        }
+        .slot {
+            width: 18vw; height: 18vw; max-width: 75px; max-height: 75px;
+            background: #2c3e50;
+            border: 4px solid #7f8c8d;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 2.2rem;
+            color: #ecf0f1;
+            font-family: var(--kai-font);
+            box-shadow: inset 4px 4px 0 rgba(0,0,0,0.3);
+        }
+        .slot.filled {
+            background: #3498db; border-color: #2980b9; color: #fff;
+            box-shadow: inset -4px -4px 0 rgba(0,0,0,0.2);
+        }
+
+        .grid-container {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+            flex: 1; overflow-y: auto; align-content: start; padding: 5px;
+        }
+        .char-btn {
+            aspect-ratio: 1;
+            background: #95a5a6;
+            border: 4px solid #7f8c8d;
+            color: #2c3e50;
+            font-size: 2rem;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #546e7a;
+            text-shadow: 1px 1px 0 #fff;
+            font-family: var(--kai-font);
+        }
+        .char-btn:active { transform: translateY(6px); box-shadow: none; }
+        .char-btn.used { 
+            opacity: 0.6; pointer-events: none; transform: translateY(6px); box-shadow: none; 
+            background: #7f8c8d; border-color: #546e7a; color: #34495e;
+        }
+
+        /* 覆蓋層 (勝利/失敗) */
+        .overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 50; text-align: center;
+        }
+        .overlay h1 { 
+            font-size: 3.5rem; 
+            color: var(--gold-color); 
+            text-shadow: 4px 4px 0 #c62828;
+            font-family: var(--kai-font); 
+            margin-bottom: 10px;
+        }
+        .overlay p {
+            font-family: var(--kai-font);
+            font-size: 1.8rem;
+            color: white;
+            text-shadow: 2px 2px 0 #000;
+            margin: 20px 0;
+        }
+
+        /* 解釋卡片 (Modal) */
+        #explanation-modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            display: none; 
+            flex-direction: column; align-items: center; justify-content: center;
+            z-index: 40;
+            animation: fadeIn 0.3s;
+        }
+        .exp-card {
+            background: var(--paper-color);
+            border: 6px solid #546e7a;
+            box-shadow: 10px 10px 0 rgba(0,0,0,0.6);
+            padding: 20px;
+            width: 90%; max-width: 500px;
+            text-align: center;
+            position: relative;
+        }
+        .exp-title {
+            font-size: 2.5rem; color: #c62828; margin-bottom: 10px;
+            font-family: var(--kai-font); text-shadow: 1px 1px 0 #fff;
+        }
+        .exp-text {
+            font-size: 1.5rem; color: #333; line-height: 1.6;
+            margin-bottom: 20px; font-family: var(--kai-font);
+        }
+        .exp-btn {
+            background: #27ae60; border: 4px solid #2ecc71; color: white;
+            font-size: 1.5rem; padding: 10px 30px; cursor: pointer;
+            box-shadow: 0 6px 0 #1e8449; font-family: var(--kai-font);
+        }
+        .exp-btn:active { transform: translateY(6px); box-shadow: none; }
+
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes floatUpPixel { 0% { transform: translate(-50%, 0); opacity: 0; } 20% { transform: translate(-50%, -20px); opacity: 1; } 100% { transform: translate(-50%, -60px); opacity: 0; } }
+        .shake { animation: shake 0.4s steps(4); }
+        @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+
+    </style>
+</head>
+<body>
+
+    <!-- 1. 設定畫面 -->
+    <div id="setup-screen" class="screen active">
+        <h1>🗡️ 成語仙俠傳 (教學版)</h1>
+        <div class="scroll-paper">
+            <p style="font-size: 1.1rem; margin-top:0; color: #555;">請輸入：<b>成語:解釋</b> (一行一組)</p>
+            <div class="input-group">
+                <textarea id="idiom-input" placeholder="範例：
+一石二鳥:比喻做一件事獲得兩種效果
+守株待兔:比喻拘泥守成，不知變通
+畫蛇添足:比喻多此一舉，反把事情弄糟
+井底之蛙:比喻見識淺薄的人
+車水馬龍:形容車馬往來繁華熱鬧
+七上八下:形容心情忐忑不安"></textarea>
+            </div>
+        </div>
+        <div>
+            <button class="btn" onclick="generateQR()">召集弟子 (QR)</button>
+            <button class="btn btn-secondary" onclick="startGameDirectly()">開始修煉</button>
+        </div>
+        <div id="qr-container">
+            <img id="qr-image" src="" alt="QR Code">
+            <p style="font-size: 1.1rem; margin-top: 10px; text-shadow: 1px 1px 0 #fff;">請弟子掃描玉簡進入幻境</p>
+        </div>
+    </div>
+
+    <!-- 2. 遊戲畫面 -->
+    <div id="game-screen" class="screen">
+        
+        <!-- 上方：戰場 -->
+        <div class="battle-stage" id="battle-stage">
+            <div class="cloud-bg"></div>
+            <div class="hud-bar">
+                <div>劫數: <span id="wave-display">一</span> / <span id="max-wave">三</span></div>
+                <div id="score-display">功德: <span style="font-family: var(--pixel-font);">0</span></div>
+                <div id="hp-display">❤️❤️❤️❤️❤️</div>
+            </div>
+
+            <!-- 主角 -->
+            <div id="hero-container">
+                <div id="hero-speech">劍來!</div>
+                <svg class="pixel-hero pixel-hero-idle" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+                    <rect x="12" y="2" width="8" height="4" fill="#2c3e50"/>
+                    <rect x="10" y="4" width="2" height="6" fill="#2c3e50"/>
+                    <rect x="20" y="4" width="2" height="6" fill="#2c3e50"/>
+                    <rect x="12" y="6" width="8" height="6" fill="#f1c40f"/>
+                    <rect x="14" y="8" width="2" height="2" fill="#000"/>
+                    <rect x="18" y="8" width="2" height="2" fill="#000"/>
+                    <rect x="10" y="12" width="12" height="18" fill="#ecf0f1"/>
+                    <rect x="8" y="14" width="2" height="16" fill="#3498db"/>
+                    <rect x="22" y="14" width="2" height="16" fill="#3498db"/>
+                    <rect x="10" y="28" width="12" height="2" fill="#3498db"/>
+                    <rect x="10" y="20" width="12" height="2" fill="#2c3e50"/>
+                    <rect x="14" y="20" width="4" height="2" fill="#f1c40f"/>
+                    <rect x="6" y="18" width="4" height="4" fill="#f1c40f"/>
+                    <rect x="22" y="18" width="4" height="4" fill="#f1c40f"/>
+                    <rect x="10" y="14" width="2" height="4" fill="#3498db" opacity="0.6"/>
+                    <rect x="20" y="14" width="2" height="4" fill="#3498db" opacity="0.6"/>
+                </svg>
+            </div>
+            
+            <!-- 成語解釋彈窗 -->
+            <div id="explanation-modal">
+                <div class="exp-card">
+                    <div id="exp-title" class="exp-title"></div>
+                    <div id="exp-text" class="exp-text"></div>
+                    <button class="exp-btn" onclick="resumeGame()">繼續戰鬥</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 下方：操作面板 -->
+        <div class="control-panel">
+            <div class="input-display-area" id="input-slots">
+                <div class="slot"></div>
+                <div class="slot"></div>
+                <div class="slot"></div>
+                <div class="slot"></div>
+            </div>
+            
+            <div class="grid-container" id="char-grid"></div>
+        </div>
+
+        <!-- 結果畫面 -->
+        <div id="result-overlay" class="overlay">
+            <h1 id="result-title">渡劫成功</h1>
+            <p id="result-msg">功德圓滿: <span style="font-family: var(--pixel-font);">0</span></p>
+            <button class="btn" onclick="resetGame()">重入輪迴</button>
+        </div>
+    </div>
+
+    <script>
+        const PIXEL_MONSTERS = {
+            'ghost': '<rect x="4" y="4" width="24" height="24" fill="#bdc3c7"/><rect x="8" y="10" width="4" height="4" fill="#000"/><rect x="20" y="10" width="4" height="4" fill="#000"/><rect x="4" y="28" width="4" height="4" fill="#bdc3c7"/><rect x="12" y="28" width="4" height="4" fill="#bdc3c7"/><rect x="20" y="28" width="4" height="4" fill="#bdc3c7"/><rect x="24" y="28" width="4" height="4" fill="#bdc3c7"/>',
+            'slime': '<rect x="4" y="16" width="24" height="12" fill="#2ecc71"/><rect x="8" y="12" width="16" height="4" fill="#2ecc71"/><rect x="12" y="8" width="8" height="4" fill="#2ecc71"/><rect x="10" y="20" width="4" height="4" fill="#27ae60"/><rect x="22" y="20" width="4" height="4" fill="#27ae60"/>',
+            'bat': '<rect x="12" y="12" width="8" height="8" fill="#34495e"/><rect x="4" y="8" width="8" height="8" fill="#2c3e50"/><rect x="20" y="8" width="8" height="8" fill="#2c3e50"/><rect x="2" y="16" width="4" height="4" fill="#2c3e50"/><rect x="26" y="16" width="4" height="4" fill="#2c3e50"/><rect x="14" y="14" width="1" height="1" fill="#e74c3c"/><rect x="17" y="14" width="1" height="1" fill="#e74c3c"/>',
+            'dragon': '<rect x="8" y="8" width="20" height="16" fill="#e74c3c"/><rect x="4" y="4" width="8" height="8" fill="#c0392b"/><rect x="20" y="4" width="4" height="4" fill="#c0392b"/><rect x="24" y="8" width="4" height="4" fill="#c0392b"/><rect x="8" y="24" width="4" height="4" fill="#c0392b"/><rect x="20" y="24" width="4" height="4" fill="#c0392b"/><rect x="2" y="12" width="6" height="4" fill="#f1c40f"/><rect x="6" y="10" width="2" height="2" fill="#000"/><rect x="26" y="16" width="4" height="4" fill="#c0392b"/>',
+            'demon': '<rect x="8" y="4" width="16" height="20" fill="#8e44ad"/><rect x="4" y="8" width="4" height="12" fill="#9b59b6"/><rect x="24" y="8" width="4" height="12" fill="#9b59b6"/><rect x="8" y="24" width="8" height="4" fill="#8e44ad"/><rect x="20" y="24" width="8" height="4" fill="#8e44ad"/><rect x="12" y="8" width="8" height="8" fill="#2c3e50"/><rect x="14" y="10" width="2" height="2" fill="#e74c3c"/><rect x="18" y="10" width="2" height="2" fill="#e74c3c"/><rect x="12" y="2" width="2" height="4" fill="#f1c40f"/><rect x="18" y="2" width="2" height="4" fill="#f1c40f"/>'
+        };
+        const NORMAL_MONSTERS = ['ghost', 'slime', 'bat'];
+        const BOSS_MONSTERS = ['dragon', 'demon'];
+
+        // 資料結構變更：[{idiom: "一石二鳥", meaning: "..."}]
+        let idiomData = [];
+        let currentWaveIdioms = [];
+        let selectedChars = [];
+        let heroHP = 5;
+        let currentWave = 1;
+        let maxWaves = 3;
+        let monsters = []; 
+        let score = 0; 
+        let gameLoopId = null;
+        let isGameOver = false;
+        let isPaused = false;
+        
+        // 暫存待攻擊的成語 (因為要等到解釋完才攻擊)
+        let pendingAttackIdiom = null;
+
+        const CHINESE_NUMS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
+
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const data = urlParams.get('data');
+            if (data) {
+                try {
+                    // 解碼並解析 JSON
+                    const jsonStr = decodeURIComponent(atob(data));
+                    idiomData = JSON.parse(jsonStr);
+                    // 填回輸入框 (方便查看)
+                    let text = idiomData.map(item => `${item.idiom}:${item.meaning}`).join('\n');
+                    document.getElementById('idiom-input').value = text;
+                    startGame();
+                } catch (e) { console.error(e); }
+            } else {
+                // 預設值 (如果沒有網址參數)
+                const defaultText = document.getElementById('idiom-input').value;
+                parseInput(defaultText);
+            }
+        };
+
+        function parseInput(text) {
+            idiomData = [];
+            const lines = text.split('\n');
+            lines.forEach(line => {
+                // 支援冒號或全形冒號分隔
+                const parts = line.split(/[:：]/);
+                if (parts.length >= 2) {
+                    const idiom = parts[0].trim();
+                    const meaning = parts.slice(1).join(':').trim(); // 避免解釋中還有冒號
+                    if (idiom.length === 4) {
+                        idiomData.push({ idiom: idiom, meaning: meaning });
+                    }
+                } else if (parts[0].trim().length === 4) {
+                    // 相容舊格式 (只有成語)
+                    idiomData.push({ idiom: parts[0].trim(), meaning: "無解釋" });
+                }
+            });
+        }
+
+        function generateQR() {
+            const input = document.getElementById('idiom-input').value;
+            if(!input.trim()) return alert("請輸入內容");
+            
+            parseInput(input);
+            if (idiomData.length === 0) return alert("請確認格式：成語:解釋");
+
+            // 使用 JSON 序列化後再編碼，支援完整物件結構
+            const jsonStr = JSON.stringify(idiomData);
+            const encoded = btoa(encodeURIComponent(jsonStr));
+            const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+            document.getElementById('qr-image').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(url)}`;
+            document.getElementById('qr-container').style.display = 'block';
+        }
+
+        function startGameDirectly() {
+            const input = document.getElementById('idiom-input').value;
+            parseInput(input);
+            if (idiomData.length === 0) return alert("請至少輸入一個四字成語 (格式: 成語:解釋)");
+            startGame();
+        }
+
+        function startGame() {
+            document.getElementById('setup-screen').classList.remove('active');
+            document.getElementById('game-screen').classList.add('active');
+            resetGame();
+        }
+
+        function resetGame() {
+            document.getElementById('result-overlay').style.display = 'none';
+            heroHP = 5;
+            score = 0;
+            currentWave = 1;
+            isGameOver = false;
+            isPaused = false;
+            maxWaves = Math.min(5, Math.ceil(idiomData.length / 2)); 
+
+            updateHP();
+            updateScoreUI();
+            document.getElementById('max-wave').innerText = toChineseNum(maxWaves);
+
+            monsters.forEach(m => { if(m.el && m.el.parentNode) m.el.parentNode.removeChild(m.el); });
+            monsters = [];
+            document.querySelectorAll('.projectile').forEach(el => el.remove());
+            document.querySelectorAll('.score-float').forEach(el => el.remove());
+            if (gameLoopId) cancelAnimationFrame(gameLoopId);
+
+            startWave();
+        }
+
+        function toChineseNum(n) { return n <= 10 ? CHINESE_NUMS[n] : n; }
+
+        function startWave() {
+            document.getElementById('wave-display').innerText = toChineseNum(currentWave);
+            monsters.forEach(m => { if(m.el && m.el.parentNode) m.el.parentNode.removeChild(m.el); });
+            monsters = [];
+            
+            let monstersCount = 3 + currentWave; 
+            currentWaveIdioms = []; // 這次是物件陣列
+            for(let i=0; i<monstersCount; i++) {
+                currentWaveIdioms.push(idiomData[Math.floor(Math.random()*idiomData.length)]);
+            }
+
+            // 提取字元
+            let chars = currentWaveIdioms.map(item => item.idiom).join('').split('');
+            chars.sort(() => Math.random() - 0.5);
+            renderGrid(chars);
+            
+            spawnMonsters(monstersCount);
+
+            if(gameLoopId) cancelAnimationFrame(gameLoopId);
+            lastTime = performance.now();
+            isGameOver = false;
+            gameLoopId = requestAnimationFrame(gameLoop);
+        }
+
+        function spawnMonsters(count) {
+            const stage = document.getElementById('battle-stage');
+            for(let i=0; i<count; i++) {
+                const el = document.createElement('div');
+                el.className = 'monster';
+                
+                let monsterType;
+                let isBoss = (i === count - 1 && currentWave % 2 === 0);
+                if (isBoss) {
+                    monsterType = BOSS_MONSTERS[Math.floor(Math.random() * BOSS_MONSTERS.length)];
+                    el.classList.add('boss-size');
+                } else {
+                    monsterType = NORMAL_MONSTERS[Math.floor(Math.random() * NORMAL_MONSTERS.length)];
+                }
+
+                el.innerHTML = `
+                    <svg class="pixel-monster" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+                        ${PIXEL_MONSTERS[monsterType]}
+                    </svg>
+                `;
+
+                let startX = 100 + (i * 25);
+                el.style.left = startX + '%';
+                stage.appendChild(el);
+                
+                monsters.push({
+                    id: Date.now() + i,
+                    el: el,
+                    x: startX,
+                    speed: 2 + (currentWave * 0.5),
+                    isDead: false,
+                    points: isBoss ? 500 : 100 
+                });
+            }
+        }
+
+        let lastTime = 0;
+        function gameLoop(timestamp) {
+            if (isGameOver) return;
+            
+            // 暫停邏輯：如果暫停中，只更新時間但不移動怪物
+            if (isPaused) {
+                lastTime = timestamp;
+                gameLoopId = requestAnimationFrame(gameLoop);
+                return;
+            }
+
+            const deltaTime = (timestamp - lastTime) / 1000; 
+            lastTime = timestamp;
+
+            monsters.forEach(m => {
+                if (m.isDead) return;
+                m.x -= m.speed * deltaTime * 2.5;
+                m.el.style.left = m.x + '%';
+                
+                if (m.x < 12) { 
+                    damageHero();
+                    killMonster(m, false);
+                }
+            });
+
+            if (monsters.filter(m => !m.isDead).length === 0 && monsters.length > 0) {
+                setTimeout(nextWave, 1000);
+                return;
+            }
+            gameLoopId = requestAnimationFrame(gameLoop);
+        }
+
+        function damageHero() {
+            heroHP--;
+            updateHP();
+            const hero = document.getElementById('hero-container');
+            hero.style.filter = "brightness(5) sepia(1) saturate(5) hue-rotate(-50deg)";
+            setTimeout(() => { hero.style.filter = ""; }, 200);
+            if (heroHP <= 0) gameOver(false);
+        }
+
+        function updateHP() {
+            let hearts = "";
+            for(let i=0; i<5; i++) hearts += (i < heroHP) ? "❤️" : "🖤";
+            document.getElementById('hp-display').innerText = hearts;
+        }
+
+        function updateScoreUI() {
+            document.getElementById('score-display').innerHTML = `功德: <span style="font-family: var(--pixel-font);">${score}</span>`;
+        }
+
+        function killMonster(monster, byPlayer) {
+            monster.isDead = true;
+            monster.el.classList.add('dead');
+            
+            if (byPlayer) {
+                score += monster.points;
+                updateScoreUI();
+                
+                const floatText = document.createElement('div');
+                floatText.className = 'score-float';
+                floatText.innerText = "+" + monster.points;
+                floatText.style.left = monster.el.style.left;
+                floatText.style.bottom = monster.el.classList.contains('boss-size') ? '40%' : '30%';
+                document.getElementById('battle-stage').appendChild(floatText);
+                setTimeout(() => floatText.remove(), 1000);
+            }
+
+            setTimeout(() => { if(monster.el.parentNode) monster.el.remove(); }, 500);
+        }
+
+        function nextWave() {
+            if (currentWave >= maxWaves) {
+                gameOver(true);
+            } else {
+                currentWave++;
+                startWave();
+            }
+        }
+
+        function gameOver(victory) {
+            isGameOver = true;
+            cancelAnimationFrame(gameLoopId);
+            const overlay = document.getElementById('result-overlay');
+            const title = document.getElementById('result-title');
+            const msg = document.getElementById('result-msg');
+            
+            overlay.style.display = 'flex';
+            if (victory) {
+                title.innerText = "渡劫成功";
+                title.style.color = "var(--gold-color)";
+                title.style.textShadow = "4px 4px 0 #c62828";
+                msg.innerHTML = `功德圓滿: <span style="font-family: var(--pixel-font);">${score}</span>`;
+            } else {
+                title.innerText = "道消魔長";
+                title.style.color = "#e74c3c";
+                title.style.textShadow = "4px 4px 0 #2c3e50";
+                msg.innerHTML = `累積功德: <span style="font-family: var(--pixel-font);">${score}</span>`;
+            }
+        }
+
+        function renderGrid(chars) {
+            const grid = document.getElementById('char-grid');
+            grid.innerHTML = '';
+            selectedChars = [];
+            updateSlotsUI();
+
+            chars.forEach((char) => {
+                const btn = document.createElement('div');
+                btn.className = 'char-btn';
+                btn.innerText = char;
+                btn.onclick = () => handleCharClick(char, btn);
+                grid.appendChild(btn);
+            });
+        }
+
+        function handleCharClick(char, btn) {
+            if (isGameOver || isPaused || btn.classList.contains('used') || selectedChars.length >= 4) return;
+            selectedChars.push({char, btn});
+            btn.classList.add('used');
+            updateSlotsUI();
+            if (selectedChars.length === 4) checkAnswer();
+        }
+
+        function updateSlotsUI() {
+            const slots = document.querySelectorAll('.slot');
+            slots.forEach(s => { s.innerText = ''; s.classList.remove('filled'); });
+            selectedChars.forEach((obj, i) => {
+                slots[i].innerText = obj.char;
+                slots[i].classList.add('filled');
+            });
+        }
+
+        function checkAnswer() {
+            const answer = selectedChars.map(o => o.char).join('');
+            // 在所有題庫中尋找
+            const found = idiomData.find(item => item.idiom === answer);
+            
+            if (found) {
+                // 答對了！
+                // 1. 暫停遊戲
+                isPaused = true;
+                pendingAttackIdiom = answer;
+                
+                // 2. 顯示解釋彈窗
+                showExplanation(found);
+
+                // 3. 處理按鈕狀態
+                selectedChars = [];
+                setTimeout(updateSlotsUI, 200);
+
+            } else {
+                document.getElementById('input-slots').classList.add('shake');
+                setTimeout(() => {
+                    document.getElementById('input-slots').classList.remove('shake');
+                    selectedChars.forEach(o => o.btn.classList.remove('used'));
+                    selectedChars = [];
+                    updateSlotsUI();
+                }, 400);
+            }
+        }
+
+        // --- 教學模式功能 ---
+        function showExplanation(item) {
+            const modal = document.getElementById('explanation-modal');
+            const title = document.getElementById('exp-title');
+            const text = document.getElementById('exp-text');
+
+            title.innerText = item.idiom;
+            text.innerText = item.meaning;
+            modal.style.display = 'flex';
+
+            // 朗讀
+            speak(item.idiom + "。" + item.meaning);
+        }
+
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                // 取消之前的朗讀
+                window.speechSynthesis.cancel();
+                
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'zh-TW';
+                utterance.rate = 1.0; 
+                utterance.pitch = 1.0;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function resumeGame() {
+            // 停止朗讀
+            if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+            // 隱藏彈窗
+            document.getElementById('explanation-modal').style.display = 'none';
+            
+            // 恢復遊戲
+            isPaused = false;
+            
+            // 執行剛才積欠的攻擊
+            if (pendingAttackIdiom) {
+                performAttack(pendingAttackIdiom);
+                pendingAttackIdiom = null;
+            }
+        }
+
+        function performAttack(text) {
+            const bubble = document.getElementById('hero-speech');
+            bubble.innerText = text;
+            bubble.classList.remove('show-speech');
+            void bubble.offsetWidth; 
+            bubble.classList.add('show-speech');
+
+            document.getElementById('hero-container').classList.add('hero-attacking');
+            setTimeout(() => document.getElementById('hero-container').classList.remove('hero-attacking'), 300);
+
+            const alive = monsters.filter(m => !m.isDead).sort((a,b) => a.x - b.x);
+            if (alive.length > 0) {
+                const target = alive[0];
+                
+                const projectile = document.createElement('div');
+                projectile.className = 'projectile';
+                projectile.style.left = '18%'; 
+                projectile.style.bottom = '20%';
+                document.getElementById('battle-stage').appendChild(projectile);
+
+                setTimeout(() => { projectile.style.left = target.x + '%'; }, 20);
+
+                setTimeout(() => {
+                    projectile.remove();
+                    killMonster(target, true);
+                }, 300);
+            }
+        }
+    </script>
+</body>
+</html>
