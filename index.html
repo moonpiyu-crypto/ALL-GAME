@@ -88,8 +88,7 @@
 
     <script>
         // Game Data Configuration
-        // IMPORTANT: Replace the '#' with your actual URLs later.
-const games = [
+        const games = [
             {
                 id: 'donkey-kong',
                 name: '大金剛',
@@ -99,7 +98,6 @@ const games = [
                 color: 'from-red-900 to-red-700',
                 btnColor: 'bg-red-500 hover:bg-red-400',
                 borderColor: 'border-red-500',
-                // 方法2：直接寫檔名
                 linkWord: 'dk-word.html',
                 linkPhrase: 'dk-phrase.html'
             },
@@ -112,7 +110,6 @@ const games = [
                 color: 'from-blue-900 to-blue-700',
                 btnColor: 'bg-blue-500 hover:bg-blue-400',
                 borderColor: 'border-blue-400',
-                // 方法2：直接寫檔名
                 linkWord: 'penguin-word.html',
                 linkPhrase: 'penguin-phrase.html'
             },
@@ -125,7 +122,6 @@ const games = [
                 color: 'from-purple-900 to-purple-700',
                 btnColor: 'bg-purple-500 hover:bg-purple-400',
                 borderColor: 'border-purple-400',
-                // 方法2：直接寫檔名
                 linkWord: 'circus-word.html',
                 linkPhrase: 'circus-phrase.html'
             },
@@ -138,7 +134,6 @@ const games = [
                 color: 'from-green-900 to-green-700',
                 btnColor: 'bg-green-600 hover:bg-green-500',
                 borderColor: 'border-green-500',
-                // 方法2：直接寫檔名
                 linkWord: 'duck-word.html',
                 linkPhrase: 'duck-phrase.html'
             },
@@ -151,9 +146,23 @@ const games = [
                 color: 'from-yellow-900 to-yellow-700',
                 btnColor: 'bg-yellow-600 hover:bg-yellow-500',
                 borderColor: 'border-yellow-400',
-                // 方法2：直接寫檔名
                 linkWord: 'pacman-word.html',
                 linkPhrase: 'pacman-phrase.html'
+            },
+            {
+                id: 'xianxia',
+                name: '東方仙俠',
+                engName: 'Immortal Legend',
+                icon: 'fa-solid fa-dragon',
+                customIcon: '🐉',
+                color: 'from-cyan-900 to-cyan-700',
+                btnColor: 'bg-cyan-600 hover:bg-cyan-500',
+                borderColor: 'border-cyan-400',
+                
+                // Modified settings for single button layout
+                type: 'single',             // Add this flag
+                linkLabel: '成語遊戲',       // Label for the button
+                link: 'xianxia-idiom.html'  // Single link file
             }
         ];
 
@@ -165,28 +174,26 @@ const games = [
 
             games.forEach(game => {
                 const card = document.createElement('div');
-                card.className = `relative overflow-hidden rounded-xl border-2 ${game.borderColor} bg-gradient-to-br ${game.color} p-6 shadow-2xl card-hover group`;
+                card.className = `relative overflow-hidden rounded-xl border-2 ${game.borderColor} bg-gradient-to-br ${game.color} p-6 shadow-2xl card-hover group flex flex-col h-full`;
                 
-                // Content HTML
-                card.innerHTML = `
-                    <!-- Background Icon Faded -->
-                    <div class="absolute -right-4 -bottom-4 text-9xl opacity-10 select-none group-hover:opacity-20 transition-opacity">
-                        ${game.customIcon}
-                    </div>
+                // Determine Button HTML based on type
+                let buttonsHtml = '';
 
-                    <!-- Title Section -->
-                    <div class="relative z-10 flex items-center mb-6">
-                        <div class="text-4xl mr-4 shadow-sm filter drop-shadow-md">
-                            ${game.customIcon}
-                        </div>
-                        <div>
-                            <h2 class="text-2xl font-bold tracking-wider retro-font text-white">${game.name}</h2>
-                            <p class="text-xs text-gray-300 uppercase tracking-widest opacity-75">${game.engName}</p>
-                        </div>
+                if (game.type === 'single') {
+                    // Single Button Layout (For Xianxia)
+                    buttonsHtml = `
+                    <div class="relative z-10 mt-auto pt-4">
+                        <button onclick="navigateTo('${game.name}', '${game.linkLabel}', '${game.link}')" 
+                           class="w-full flex items-center justify-center py-4 px-4 rounded-lg ${game.btnColor} text-white shadow-lg transform hover:-translate-y-1 transition-transform border border-white/20">
+                            <i class="fa-solid fa-scroll mr-2"></i>
+                            <span class="font-bold text-lg tracking-wider">${game.linkLabel}</span>
+                        </button>
                     </div>
-
-                    <!-- Buttons Section -->
-                    <div class="relative z-10 grid grid-cols-2 gap-4 mt-auto">
+                    `;
+                } else {
+                    // Standard Two Buttons Layout (Word/Phrase)
+                    buttonsHtml = `
+                    <div class="relative z-10 grid grid-cols-2 gap-4 mt-auto pt-4">
                         <button onclick="navigateTo('${game.name}', '單字版', '${game.linkWord}')" 
                            class="flex flex-col items-center justify-center py-3 px-2 rounded-lg bg-gray-800 border border-gray-600 hover:border-white hover:bg-gray-700 transition-colors text-white group-btn">
                             <span class="text-xs text-gray-400 mb-1">Level 1</span>
@@ -199,17 +206,41 @@ const games = [
                             <span class="font-bold">詞語版</span>
                         </button>
                     </div>
+                    `;
+                }
+
+                // Content HTML
+                card.innerHTML = `
+                    <!-- Background Icon Faded -->
+                    <div class="absolute -right-4 -bottom-4 text-9xl opacity-10 select-none group-hover:opacity-20 transition-opacity">
+                        ${game.customIcon}
+                    </div>
+
+                    <!-- Title Section -->
+                    <div class="relative z-10 flex items-center mb-2">
+                        <div class="text-4xl mr-4 shadow-sm filter drop-shadow-md">
+                            ${game.customIcon}
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold tracking-wider retro-font text-white">${game.name}</h2>
+                            <p class="text-xs text-gray-300 uppercase tracking-widest opacity-75">${game.engName}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Flexible spacer -->
+                    <div class="flex-grow"></div>
+
+                    <!-- Buttons Section -->
+                    ${buttonsHtml}
                 `;
 
                 container.appendChild(card);
             });
         }
 
-        // Simulating Navigation (Delete this and use real hrefs in the 'games' array for production)
+        // Simulating Navigation
         function navigateTo(gameName, version, url) {
             if (url === '#' || url === '') {
-                // Show a nice customized alert or modal instead of navigating
-                // Creating a temporary toast notification
                 showToast(`正在前往：${gameName} - ${version}`);
             } else {
                 window.location.href = url;
@@ -219,7 +250,7 @@ const games = [
         // Simple Toast Notification
         function showToast(message) {
             const toast = document.createElement('div');
-            toast.className = 'fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-white text-black px-6 py-3 rounded-full shadow-lg font-bold z-50 animate-bounce';
+            toast.className = 'fixed bottom-10 left-1/2 transform -translate-x-1/2 bg-white text-black px-6 py-3 rounded-full shadow-lg font-bold z-50 animate-bounce text-center whitespace-nowrap';
             toast.innerText = message;
             document.body.appendChild(toast);
             
