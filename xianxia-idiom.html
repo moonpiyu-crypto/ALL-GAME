@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>成語仙俠傳：御劍衛道 (教學版)</title>
+    <title>成語仙俠傳：御劍衛道 (修正版)</title>
     <style>
         :root {
             --bg-color: #2b2b2b;
@@ -138,7 +138,7 @@
 
         /* 上半部：像素雲端戰場 */
         .battle-stage {
-            flex: 1;
+            flex: 1; /* 佔據剩餘空間 */
             width: 100%;
             background: repeating-linear-gradient(to bottom, #aed6f1, #aed6f1 4px, #85c1e9 4px, #85c1e9 8px); 
             position: relative;
@@ -279,25 +279,32 @@
             transition: left 0.3s linear, top 0.3s linear;
         }
 
-        /* 下半部：操作台 */
+        /* 下半部：操作台 (修正為 Flex Wrap 自動換行，無須滑動) */
         .control-panel {
-            height: 50vh;
+            /* 不使用固定高度，而是佔據剩下空間，或設定 max-height 搭配 flex */
+            height: 45vh; /* 稍微縮小高度比例，讓上方戰鬥區更大一點 */
             background: #34495e;
             width: 100%;
-            display: flex; flex-direction: column; padding: 15px;
+            display: flex; 
+            flex-direction: column; 
+            padding: 10px;
             box-shadow: 0 -8px 0 rgba(0,0,0,0.5);
             border-top: 8px solid #2c3e50;
         }
 
         .input-display-area {
-            display: flex; justify-content: center; margin-bottom: 15px; gap: 10px;
+            display: flex; 
+            justify-content: center; 
+            margin-bottom: 10px; 
+            gap: 10px;
+            flex-shrink: 0; /* 防止被壓縮 */
         }
         .slot {
-            width: 18vw; height: 18vw; max-width: 75px; max-height: 75px;
+            width: 15vw; height: 15vw; max-width: 60px; max-height: 60px;
             background: #2c3e50;
             border: 4px solid #7f8c8d;
             display: flex; align-items: center; justify-content: center;
-            font-size: 2.2rem;
+            font-size: 1.8rem;
             color: #ecf0f1;
             font-family: var(--kai-font);
             box-shadow: inset 4px 4px 0 rgba(0,0,0,0.3);
@@ -307,25 +314,51 @@
             box-shadow: inset -4px -4px 0 rgba(0,0,0,0.2);
         }
 
+        /* 修正後的 grid-container: 使用 Flex Wrap 自動填滿 */
         .grid-container {
-            display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
-            flex: 1; overflow-y: auto; align-content: start; padding: 5px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-content: flex-start; /* 內容從上排到下 */
+            gap: 8px; /* 按鈕間距 */
+            flex: 1; 
+            overflow: hidden; /* 隱藏捲軸 */
+            padding: 5px;
+            width: 100%;
         }
+        
         .char-btn {
-            aspect-ratio: 1;
+            /* 計算寬度：一行約 5 個 */
+            width: calc(20% - 8px); 
+            height: auto;
+            aspect-ratio: 1; /* 保持正方形 */
+            
             background: #95a5a6;
             border: 4px solid #7f8c8d;
             color: #2c3e50;
-            font-size: 2rem;
+            font-size: 1.5rem; /* 字體自動適應 */
             display: flex; align-items: center; justify-content: center;
             cursor: pointer;
-            box-shadow: 0 6px 0 #546e7a;
+            box-shadow: 0 4px 0 #546e7a;
             text-shadow: 1px 1px 0 #fff;
             font-family: var(--kai-font);
+            
+            /* 防止文字換行 */
+            white-space: nowrap;
         }
-        .char-btn:active { transform: translateY(6px); box-shadow: none; }
+        
+        /* RWD 微調 */
+        @media (min-width: 600px) {
+            .char-btn {
+                width: calc(12.5% - 10px); /* 平板/電腦一行 8 個 */
+                font-size: 2rem;
+                box-shadow: 0 6px 0 #546e7a;
+            }
+        }
+
+        .char-btn:active { transform: translateY(4px); box-shadow: none; }
         .char-btn.used { 
-            opacity: 0.6; pointer-events: none; transform: translateY(6px); box-shadow: none; 
+            opacity: 0.4; pointer-events: none; transform: translateY(4px); box-shadow: none; 
             background: #7f8c8d; border-color: #546e7a; color: #34495e;
         }
 
@@ -494,7 +527,6 @@
         const NORMAL_MONSTERS = ['ghost', 'slime', 'bat'];
         const BOSS_MONSTERS = ['dragon', 'demon'];
 
-        // 資料結構變更：[{idiom: "一石二鳥", meaning: "..."}]
         let idiomData = [];
         let currentWaveIdioms = [];
         let selectedChars = [];
@@ -506,8 +538,6 @@
         let gameLoopId = null;
         let isGameOver = false;
         let isPaused = false;
-        
-        // 暫存待攻擊的成語 (因為要等到解釋完才攻擊)
         let pendingAttackIdiom = null;
 
         const CHINESE_NUMS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
@@ -517,16 +547,13 @@
             const data = urlParams.get('data');
             if (data) {
                 try {
-                    // 解碼並解析 JSON
                     const jsonStr = decodeURIComponent(atob(data));
                     idiomData = JSON.parse(jsonStr);
-                    // 填回輸入框 (方便查看)
                     let text = idiomData.map(item => `${item.idiom}:${item.meaning}`).join('\n');
                     document.getElementById('idiom-input').value = text;
                     startGame();
                 } catch (e) { console.error(e); }
             } else {
-                // 預設值 (如果沒有網址參數)
                 const defaultText = document.getElementById('idiom-input').value;
                 parseInput(defaultText);
             }
@@ -536,16 +563,15 @@
             idiomData = [];
             const lines = text.split('\n');
             lines.forEach(line => {
-                // 支援冒號或全形冒號分隔
+                if(!line.trim()) return; // 忽略空行
                 const parts = line.split(/[:：]/);
                 if (parts.length >= 2) {
                     const idiom = parts[0].trim();
-                    const meaning = parts.slice(1).join(':').trim(); // 避免解釋中還有冒號
+                    const meaning = parts.slice(1).join(':').trim();
                     if (idiom.length === 4) {
                         idiomData.push({ idiom: idiom, meaning: meaning });
                     }
                 } else if (parts[0].trim().length === 4) {
-                    // 相容舊格式 (只有成語)
                     idiomData.push({ idiom: parts[0].trim(), meaning: "無解釋" });
                 }
             });
@@ -558,10 +584,11 @@
             parseInput(input);
             if (idiomData.length === 0) return alert("請確認格式：成語:解釋");
 
-            // 使用 JSON 序列化後再編碼，支援完整物件結構
             const jsonStr = JSON.stringify(idiomData);
             const encoded = btoa(encodeURIComponent(jsonStr));
-            const url = `${window.location.origin}${window.location.pathname}?data=${encoded}`;
+            // 修正：使用 location.href 來確保路徑正確 (包含 file:// 或其他環境)
+            const currentUrl = window.location.href.split('?')[0];
+            const url = `${currentUrl}?data=${encoded}`;
             document.getElementById('qr-image').src = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(url)}`;
             document.getElementById('qr-container').style.display = 'block';
         }
@@ -609,12 +636,11 @@
             monsters = [];
             
             let monstersCount = 3 + currentWave; 
-            currentWaveIdioms = []; // 這次是物件陣列
+            currentWaveIdioms = []; 
             for(let i=0; i<monstersCount; i++) {
                 currentWaveIdioms.push(idiomData[Math.floor(Math.random()*idiomData.length)]);
             }
 
-            // 提取字元
             let chars = currentWaveIdioms.map(item => item.idiom).join('').split('');
             chars.sort(() => Math.random() - 0.5);
             renderGrid(chars);
@@ -667,7 +693,6 @@
         function gameLoop(timestamp) {
             if (isGameOver) return;
             
-            // 暫停邏輯：如果暫停中，只更新時間但不移動怪物
             if (isPaused) {
                 lastTime = timestamp;
                 gameLoopId = requestAnimationFrame(gameLoop);
@@ -798,22 +823,14 @@
 
         function checkAnswer() {
             const answer = selectedChars.map(o => o.char).join('');
-            // 在所有題庫中尋找
             const found = idiomData.find(item => item.idiom === answer);
             
             if (found) {
-                // 答對了！
-                // 1. 暫停遊戲
                 isPaused = true;
                 pendingAttackIdiom = answer;
-                
-                // 2. 顯示解釋彈窗
                 showExplanation(found);
-
-                // 3. 處理按鈕狀態
                 selectedChars = [];
                 setTimeout(updateSlotsUI, 200);
-
             } else {
                 document.getElementById('input-slots').classList.add('shake');
                 setTimeout(() => {
@@ -825,7 +842,6 @@
             }
         }
 
-        // --- 教學模式功能 ---
         function showExplanation(item) {
             const modal = document.getElementById('explanation-modal');
             const title = document.getElementById('exp-title');
@@ -834,16 +850,12 @@
             title.innerText = item.idiom;
             text.innerText = item.meaning;
             modal.style.display = 'flex';
-
-            // 朗讀
             speak(item.idiom + "。" + item.meaning);
         }
 
         function speak(text) {
             if ('speechSynthesis' in window) {
-                // 取消之前的朗讀
                 window.speechSynthesis.cancel();
-                
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'zh-TW';
                 utterance.rate = 1.0; 
@@ -853,16 +865,9 @@
         }
 
         function resumeGame() {
-            // 停止朗讀
             if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-
-            // 隱藏彈窗
             document.getElementById('explanation-modal').style.display = 'none';
-            
-            // 恢復遊戲
             isPaused = false;
-            
-            // 執行剛才積欠的攻擊
             if (pendingAttackIdiom) {
                 performAttack(pendingAttackIdiom);
                 pendingAttackIdiom = null;
@@ -882,15 +887,12 @@
             const alive = monsters.filter(m => !m.isDead).sort((a,b) => a.x - b.x);
             if (alive.length > 0) {
                 const target = alive[0];
-                
                 const projectile = document.createElement('div');
                 projectile.className = 'projectile';
                 projectile.style.left = '18%'; 
                 projectile.style.bottom = '20%';
                 document.getElementById('battle-stage').appendChild(projectile);
-
                 setTimeout(() => { projectile.style.left = target.x + '%'; }, 20);
-
                 setTimeout(() => {
                     projectile.remove();
                     killMonster(target, true);
