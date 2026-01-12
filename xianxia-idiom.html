@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>成語仙俠傳：御劍衛道 (快速開始版)</title>
+    <title>成語仙俠傳：御劍衛道 (完整版)</title>
+    <!-- 引入穩定的 QR Code 生成庫 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <style>
         :root {
@@ -131,6 +132,7 @@
             align-items: center;
         }
         
+        /* QR Code Canvas */
         #qr-code-canvas {
             margin-bottom: 10px;
             display: block;
@@ -143,7 +145,7 @@
             background: #2b2b2b;
         }
 
-        /* 上半部：像素雲端戰場 */
+        /* 上半部：戰場 */
         .battle-stage {
             height: 45%; 
             width: 100%;
@@ -551,11 +553,9 @@
                         idiomData = parsedData;
                     }
 
-                    // 填回輸入框
                     let text = idiomData.map(item => `${item.idiom}:${item.meaning}`).join('\n');
                     document.getElementById('idiom-input').value = text;
 
-                    // 自動開始判斷
                     if (mode === 'play') {
                         startGame();
                     }
@@ -592,12 +592,10 @@
             parseInput(input);
             if (idiomData.length === 0) return alert("請確認格式：成語:解釋");
 
-            // 壓縮資料
             const compactData = idiomData.map(item => [item.idiom, item.meaning]);
             const jsonStr = JSON.stringify(compactData);
             const encoded = btoa(encodeURIComponent(jsonStr)); 
             
-            // 加上 mode=play 參數，讓掃描後直接開始
             const currentUrl = window.location.href.split('?')[0];
             const fullUrl = `${currentUrl}?data=${encoded}&mode=play`;
             
@@ -606,14 +604,13 @@
             }
 
             try {
-                // 使用 QRious
                 if (typeof QRious === 'undefined') throw new Error("QRious 庫未載入");
 
                 const qr = new QRious({
                     element: document.getElementById('qr-code-canvas'),
                     value: fullUrl,
                     size: 250,
-                    level: 'L' // 容錯等級
+                    level: 'L'
                 });
                 
                 document.getElementById('qr-container').style.display = 'flex';
