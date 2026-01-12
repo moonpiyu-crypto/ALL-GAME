@@ -596,17 +596,21 @@
             const container = document.getElementById('qr-code-display');
             container.innerHTML = "";
             
-            // 使用 qrcode.js 生成
-            new QRCode(container, {
-                text: fullUrl,
-                width: 250,
-                height: 250,
-                colorDark : "#000000",
-                colorLight : "#ffffff",
-                correctLevel : QRCode.CorrectLevel.H
-            });
-
-            document.getElementById('qr-container').style.display = 'flex';
+            // 使用 qrcode.js 生成，加入 try-catch 和降低容錯等級
+            try {
+                new QRCode(container, {
+                    text: fullUrl,
+                    width: 250,
+                    height: 250,
+                    colorDark : "#000000",
+                    colorLight : "#ffffff",
+                    correctLevel : QRCode.CorrectLevel.L // 降低容錯率以容納更多文字
+                });
+                document.getElementById('qr-container').style.display = 'flex';
+            } catch (e) {
+                alert("文字過多無法產生 QR Code，請減少成語數量。");
+                console.error(e);
+            }
         }
 
         function startGameDirectly() {
