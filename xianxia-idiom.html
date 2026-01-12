@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>成語仙俠傳：御劍衛道 (QR修正版)</title>
-    <!-- 引入 QR Code 生成庫 -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- 更換為更穩定的 QRious 庫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <style>
         :root {
             --bg-color: #2b2b2b;
@@ -131,12 +131,12 @@
             flex-direction: column;
             align-items: center;
         }
-        /* QR Code 容器樣式修正 */
-        #qr-code-display {
+        
+        /* QR Code Canvas 樣式 */
+        #qr-code-canvas {
             margin-bottom: 10px;
-        }
-        #qr-code-display img {
-            display: block; /* 修正圖片間距 */
+            display: block;
+            border: 2px solid #ccc;
         }
 
         /* --- 2. 遊戲主畫面 --- */
@@ -194,7 +194,7 @@
             position: absolute;
             bottom: 12%; 
             left: 8%;
-            width: 80px; /* 稍微縮小主角以適應手機畫面 */
+            width: 80px; 
             height: 80px;
             z-index: 5;
             transition: transform 0.1s;
@@ -289,9 +289,9 @@
             transition: left 0.3s linear, top 0.3s linear;
         }
 
-        /* 下半部：操作台 (修正為 Flex/Grid 自動填滿，確保無捲軸) */
+        /* 下半部：操作台 */
         .control-panel {
-            flex: 1; /* 佔據剩餘的所有空間 (約 55%) */
+            flex: 1; 
             background: #34495e;
             width: 100%;
             display: flex; 
@@ -299,7 +299,7 @@
             padding: 8px;
             box-shadow: 0 -8px 0 rgba(0,0,0,0.5);
             border-top: 8px solid #2c3e50;
-            overflow: hidden; /* 防止整體出現捲軸 */
+            overflow: hidden; 
         }
 
         .input-display-area {
@@ -308,7 +308,7 @@
             margin-bottom: 8px; 
             gap: 8px;
             flex-shrink: 0;
-            height: 50px; /* 固定高度，避免佔太多 */
+            height: 50px; 
         }
         .slot {
             width: 50px; height: 50px;
@@ -325,24 +325,20 @@
             box-shadow: inset -4px -4px 0 rgba(0,0,0,0.2);
         }
 
-        /* 網格容器優化 */
+        /* 網格容器 */
         .grid-container {
             display: grid;
-            /* 自動填滿：最小寬度 60px，最大 1fr。這樣在手機上會自動變多行 */
             grid-template-columns: repeat(auto-fit, minmax(18%, 1fr));
-            grid-auto-rows: 1fr; /* 讓所有列高度一致 */
+            grid-auto-rows: 1fr;
             gap: 6px;
             flex: 1; 
             width: 100%;
             padding: 2px;
-            /* 關鍵：使用 overflow-y: auto 只有在字真的太多的時候才滑動，
-               但透過 flex 佈局通常能塞下 20 個字 */
             overflow-y: auto; 
-            align-content: start; /* 內容靠上 */
+            align-content: start; 
         }
         
         .char-btn {
-            /* 移除固定 aspect-ratio，讓高度自適應網格 */
             min-height: 50px; 
             background: #95a5a6;
             border: 4px solid #7f8c8d;
@@ -445,8 +441,8 @@
             <button class="btn btn-secondary" onclick="startGameDirectly()">開始修煉</button>
         </div>
         <div id="qr-container">
-            <!-- 修正：使用 div 容器來容納 QRCode 庫生成的 canvas/img -->
-            <div id="qr-code-display"></div>
+            <!-- 使用 canvas 來配合 QRious -->
+            <canvas id="qr-code-canvas"></canvas>
             <p style="font-size: 1.1rem; margin-top: 10px; text-shadow: 1px 1px 0 #fff; color: #333;">請弟子掃描玉簡進入幻境</p>
         </div>
     </div>
@@ -550,12 +546,9 @@
                     const jsonStr = decodeURIComponent(atob(data));
                     const parsedData = JSON.parse(jsonStr);
                     
-                    // Backward compatibility: check if it's array of objects or array of arrays
                     if (parsedData.length > 0 && Array.isArray(parsedData[0])) {
-                        // New format: [[idiom, meaning], ...]
                         idiomData = parsedData.map(item => ({ idiom: item[0], meaning: item[1] }));
                     } else {
-                        // Old format: [{idiom:..., meaning:...}]
                         idiomData = parsedData;
                     }
 
@@ -587,7 +580,7 @@
             });
         }
 
-        // --- 修正 QR Code 生成 ---
+        // --- 使用 QRious 生成 QR Code ---
         function generateQR() {
             const input = document.getElementById('idiom-input').value;
             if(!input.trim()) return alert("請輸入內容");
@@ -595,41 +588,32 @@
             parseInput(input);
             if (idiomData.length === 0) return alert("請確認格式：成語:解釋");
 
-            // Optimize data size: Convert to array of arrays
+            // 壓縮資料
             const compactData = idiomData.map(item => [item.idiom, item.meaning]);
             const jsonStr = JSON.stringify(compactData);
-            
-            // Standard base64 encoding for URL safety (handling utf8)
             const encoded = btoa(encodeURIComponent(jsonStr)); 
             
             const currentUrl = window.location.href.split('?')[0];
             const fullUrl = `${currentUrl}?data=${encoded}`;
             
-            // Limit check (QR Code max capacity varies, but > 2000 chars risks failure in this lib)
             if (fullUrl.length > 2000) {
                 return alert(`資料量過大 (${fullUrl.length} 字元)，請減少成語數量或縮短解釋。`);
             }
 
-            const container = document.getElementById('qr-code-display');
-            container.innerHTML = "";
-            
             try {
-                // Ensure qrcode.js is loaded
-                if (typeof QRCode === 'undefined') {
-                    throw new Error("QR Code library not loaded.");
-                }
+                // 使用 QRious
+                if (typeof QRious === 'undefined') throw new Error("QRious 庫未載入");
 
-                new QRCode(container, {
-                    text: fullUrl,
-                    width: 250,
-                    height: 250,
-                    colorDark : "#000000",
-                    colorLight : "#ffffff",
-                    correctLevel : QRCode.CorrectLevel.L // 降低容錯率以容納更多文字
+                const qr = new QRious({
+                    element: document.getElementById('qr-code-canvas'),
+                    value: fullUrl,
+                    size: 250,
+                    level: 'L' // 容錯等級
                 });
+                
                 document.getElementById('qr-container').style.display = 'flex';
             } catch (e) {
-                alert("QR Code 生成失敗，資料量可能超出上限或庫未載入。");
+                alert("QR Code 生成失敗：" + e.message);
                 console.error(e);
             }
         }
