@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>成語仙俠傳：御劍衛道 (完整版)</title>
+    <title>成語仙俠傳：御劍衛道 (關卡版)</title>
     <!-- 引入穩定的 QR Code 生成庫 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <style>
@@ -379,7 +379,7 @@
 
         /* Start Overlay */
         #start-overlay {
-            background: rgba(0, 0, 0, 0.85); /* Darker background */
+            background: rgba(0, 0, 0, 0.85);
         }
         
         #start-btn-large {
@@ -468,7 +468,7 @@
         <div class="battle-stage" id="battle-stage">
             <div class="cloud-bg"></div>
             <div class="hud-bar">
-                <div>劫數: <span id="wave-display">一</span> / <span id="max-wave">三</span></div>
+                <div>關卡: <span id="wave-display">一</span> / <span id="max-wave">三</span></div>
                 <div id="score-display">功德: <span style="font-family: var(--pixel-font);">0</span></div>
                 <div id="hp-display">❤️❤️❤️❤️❤️</div>
             </div>
@@ -544,11 +544,11 @@
         const BOSS_MONSTERS = ['dragon', 'demon'];
 
         let idiomData = [];
-        let currentWaveIdioms = [];
+        let currentLevelIdioms = []; // 每個關卡的 5 個成語
         let selectedChars = [];
         let heroHP = 5;
-        let currentWave = 1;
-        let maxWaves = 3;
+        let currentLevel = 1;
+        let maxLevels = 1;
         let monsters = []; 
         let score = 0; 
         let gameLoopId = null;
@@ -668,14 +668,15 @@
             document.getElementById('result-overlay').style.display = 'none';
             heroHP = 5;
             score = 0;
-            currentWave = 1;
+            currentLevel = 1;
             isGameOver = false;
             isPaused = false;
-            maxWaves = Math.min(5, Math.ceil(idiomData.length / 2)); 
+            // 每個關卡 5 個成語
+            maxLevels = Math.ceil(idiomData.length / 5); 
 
             updateHP();
             updateScoreUI();
-            document.getElementById('max-wave').innerText = toChineseNum(maxWaves);
+            document.getElementById('max-wave').innerText = toChineseNum(maxLevels);
 
             monsters.forEach(m => { if(m.el && m.el.parentNode) m.el.parentNode.removeChild(m.el); });
             monsters = [];
@@ -683,27 +684,32 @@
             document.querySelectorAll('.score-float').forEach(el => el.remove());
             if (gameLoopId) cancelAnimationFrame(gameLoopId);
 
-            startWave();
+            startLevel();
         }
 
         function toChineseNum(n) { return n <= 10 ? CHINESE_NUMS[n] : n; }
 
-        function startWave() {
-            document.getElementById('wave-display').innerText = toChineseNum(currentWave);
+        function startLevel() {
+            document.getElementById('wave-display').innerText = toChineseNum(currentLevel);
             monsters.forEach(m => { if(m.el && m.el.parentNode) m.el.parentNode.removeChild(m.el); });
             monsters = [];
             
-            let monstersCount = 3 + currentWave; 
-            currentWaveIdioms = []; 
-            for(let i=0; i<monstersCount; i++) {
-                currentWaveIdioms.push(idiomData[Math.floor(Math.random()*idiomData.length)]);
+            // 計算當前關卡的成語範圍
+            const startIndex = (currentLevel - 1) * 5;
+            const endIndex = startIndex + 5;
+            currentLevelIdioms = idiomData.slice(startIndex, endIndex);
+            
+            if (currentLevelIdioms.length === 0) {
+                // 如果沒有成語了 (防止錯誤)
+                gameOver(true);
+                return;
             }
 
-            let chars = currentWaveIdioms.map(item => item.idiom).join('').split('');
+            let chars = currentLevelIdioms.map(item => item.idiom).join('').split('');
             chars.sort(() => Math.random() - 0.5);
             renderGrid(chars);
             
-            spawnMonsters(monstersCount);
+            spawnMonsters(currentLevelIdioms.length);
 
             if(gameLoopId) cancelAnimationFrame(gameLoopId);
             lastTime = performance.now();
@@ -718,7 +724,7 @@
                 el.className = 'monster';
                 
                 let monsterType;
-                let isBoss = (i === count - 1 && currentWave % 2 === 0);
+                let isBoss = (i === count - 1 && currentLevel % 2 === 0);
                 if (isBoss) {
                     monsterType = BOSS_MONSTERS[Math.floor(Math.random() * BOSS_MONSTERS.length)];
                     el.classList.add('boss-size');
@@ -740,7 +746,7 @@
                     id: Date.now() + i,
                     el: el,
                     x: startX,
-                    speed: 2 + (currentWave * 0.5),
+                    speed: 2 + (currentLevel * 0.5),
                     isDead: false,
                     points: isBoss ? 500 : 100 
                 });
@@ -771,8 +777,10 @@
                 }
             });
 
-            if (monsters.filter(m => !m.isDead).length === 0 && monsters.length > 0) {
-                setTimeout(nextWave, 1000);
+            // 檢查是否還有怪物活著
+            const aliveMonsters = monsters.filter(m => !m.isDead);
+            if (aliveMonsters.length === 0 && monsters.length > 0) {
+                setTimeout(nextLevel, 1000);
                 return;
             }
             gameLoopId = requestAnimationFrame(gameLoop);
@@ -817,12 +825,12 @@
             setTimeout(() => { if(monster.el.parentNode) monster.el.remove(); }, 500);
         }
 
-        function nextWave() {
-            if (currentWave >= maxWaves) {
+        function nextLevel() {
+            if (currentLevel >= maxLevels) {
                 gameOver(true);
             } else {
-                currentWave++;
-                startWave();
+                currentLevel++;
+                startLevel();
             }
         }
 
@@ -881,7 +889,8 @@
 
         function checkAnswer() {
             const answer = selectedChars.map(o => o.char).join('');
-            const found = idiomData.find(item => item.idiom === answer);
+            // 檢查是否在當前關卡的成語清單中
+            const found = currentLevelIdioms.find(item => item.idiom === answer);
             
             if (found) {
                 isPaused = true;
