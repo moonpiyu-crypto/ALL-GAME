@@ -63,6 +63,7 @@
             padding: 20px;
             text-align: center;
             z-index: 20;
+            overflow-y: auto; /* 允許設定頁面捲動 */
         }
         
         #setup-screen h1 {
@@ -79,7 +80,7 @@
             padding: 20px;
             border: 4px solid #546e7a;
             box-shadow: 8px 8px 0 rgba(0,0,0,0.5);
-            width: 100%;
+            width: 90%;
             max-width: 600px;
             margin-bottom: 20px;
             position: relative;
@@ -87,7 +88,7 @@
         
         textarea {
             width: 100%;
-            height: 200px;
+            height: 150px;
             background: #eceff1;
             border: 4px solid #78909c;
             color: #37474f;
@@ -113,21 +114,46 @@
         }
         .btn:active { transform: translateY(6px); box-shadow: none; }
         .btn-secondary { background: #607d8b; border-color: #455a64; box-shadow: 0 6px 0 #263238; text-shadow: 2px 2px 0 #263238; }
+        .btn-small { padding: 8px 15px; font-size: 1.2rem; margin: 5px; }
 
         #qr-container {
             background: white;
-            padding: 15px;
+            padding: 20px;
             border: 6px solid var(--cyan-dark);
             margin-top: 20px;
+            margin-bottom: 50px; /* 預留底部空間 */
             display: none;
             flex-direction: column;
             align-items: center;
+            width: 90%;
+            max-width: 500px;
         }
         
         #qr-code-canvas {
             margin-bottom: 10px;
             display: block;
             border: 2px solid #ccc;
+        }
+
+        #link-container {
+            width: 100%;
+            margin-top: 15px;
+            border-top: 2px dashed #ccc;
+            padding-top: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #game-link-input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 2px solid #546e7a;
+            background: #eee;
+            color: #333;
+            font-size: 1rem;
+            border-radius: 4px;
         }
 
         #game-screen {
@@ -433,12 +459,21 @@
             </div>
         </div>
         <div>
-            <button class="btn" onclick="generateQR()">召集弟子 (QR)</button>
-            <button class="btn btn-secondary" onclick="startGameDirectly()">開始修煉</button>
+            <button class="btn" onclick="generateQR()">產生遊戲</button>
+            <button class="btn btn-secondary" onclick="startGameDirectly()">教師試玩</button>
         </div>
         <div id="qr-container">
+            <p style="font-size: 1.1rem; margin-bottom: 10px; text-shadow: 1px 1px 0 #fff; color: #333;">掃描 QR Code 進入遊戲：</p>
             <canvas id="qr-code-canvas"></canvas>
-            <p style="font-size: 1.1rem; margin-top: 10px; text-shadow: 1px 1px 0 #fff; color: #333;">請弟子掃描玉簡進入幻境</p>
+            
+            <div id="link-container">
+                <p style="font-size: 1rem; color: #555; margin-bottom:5px;">或複製下方連結：</p>
+                <input type="text" id="game-link-input" readonly>
+                <div>
+                    <button class="btn btn-small" onclick="copyGameLink()">複製連結</button>
+                    <button class="btn btn-secondary btn-small" onclick="openGameLink()">直接開啟</button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -539,7 +574,6 @@
             const mode = urlParams.get('mode');
 
             if (mode === 'play') {
-                // 強制隱藏設定畫面，避免露餡
                 document.getElementById('setup-screen').classList.remove('active');
                 document.getElementById('setup-screen').style.display = 'none';
                 
@@ -554,7 +588,6 @@
                             idiomData = parsedData;
                         }
 
-                        // 準備進入遊戲 (顯示開始按鈕)
                         prepareGameFromQR();
                         return;
 
@@ -567,7 +600,6 @@
                 }
             } 
             
-            // 預設行為 (教師端)
             const defaultText = document.getElementById('idiom-input').value;
             parseInput(defaultText);
         };
@@ -604,7 +636,8 @@
             const currentUrl = window.location.href.split('?')[0];
             const fullUrl = `${currentUrl}?data=${encoded}&mode=play`;
             
-            // 移除資料長度限制檢查
+            // Remove limit check
+            // if (fullUrl.length > 2000) ...
 
             try {
                 if (typeof QRious === 'undefined') throw new Error("QRious 庫未載入");
@@ -616,11 +649,33 @@
                     level: 'L'
                 });
                 
+                // 設定連結
+                document.getElementById('game-link-input').value = fullUrl;
+
                 document.getElementById('qr-container').style.display = 'flex';
+                // 滾動到 QR Code 區域
+                document.getElementById('qr-container').scrollIntoView({ behavior: 'smooth' });
+
             } catch (e) {
                 alert("QR Code 生成失敗：" + e.message);
                 console.error(e);
             }
+        }
+
+        function copyGameLink() {
+            const input = document.getElementById('game-link-input');
+            input.select();
+            input.setSelectionRange(0, 99999);
+            navigator.clipboard.writeText(input.value).then(() => {
+                alert("連結已複製到剪貼簿！");
+            }).catch(err => {
+                alert("複製失敗，請手動複製。");
+            });
+        }
+
+        function openGameLink() {
+            const url = document.getElementById('game-link-input').value;
+            if(url) window.open(url, '_blank');
         }
 
         function startGameDirectly() {
@@ -630,14 +685,13 @@
             
             document.getElementById('setup-screen').classList.remove('active');
             document.getElementById('game-screen').classList.add('active');
-            document.getElementById('start-overlay').style.display = 'none'; // 教師直接開始
+            document.getElementById('start-overlay').style.display = 'none'; 
             resetGame();
         }
 
         function prepareGameFromQR() {
             document.getElementById('setup-screen').classList.remove('active');
             document.getElementById('game-screen').classList.add('active');
-            // 顯示開始按鈕，等待學生點擊
             document.getElementById('start-overlay').style.display = 'flex';
         }
 
