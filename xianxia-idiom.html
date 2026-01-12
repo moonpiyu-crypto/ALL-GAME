@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>成語仙俠傳：御劍衛道 (關卡版)</title>
+    <title>成語仙俠傳：御劍衛道 (完整版)</title>
     <!-- 引入穩定的 QR Code 生成庫 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <style>
@@ -619,9 +619,7 @@
             const currentUrl = window.location.href.split('?')[0];
             const fullUrl = `${currentUrl}?data=${encoded}&mode=play`;
             
-            if (fullUrl.length > 2000) {
-                return alert(`資料量過大 (${fullUrl.length} 字元)，請減少成語數量或縮短解釋。`);
-            }
+            // 移除資料長度限制檢查，允許生成
 
             try {
                 if (typeof QRious === 'undefined') throw new Error("QRious 庫未載入");
