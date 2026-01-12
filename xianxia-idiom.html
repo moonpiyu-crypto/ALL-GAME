@@ -132,7 +132,6 @@
             align-items: center;
         }
         
-        /* QR Code Canvas */
         #qr-code-canvas {
             margin-bottom: 10px;
             display: block;
@@ -378,6 +377,21 @@
             margin: 20px 0;
         }
 
+        /* Start Overlay */
+        #start-overlay {
+            background: rgba(0, 0, 0, 0.85); /* Darker background */
+        }
+        
+        #start-btn-large {
+            font-size: 2.5rem;
+            padding: 20px 50px;
+            border-width: 6px;
+            animation: pulse 1.5s infinite;
+            background: #e74c3c;
+            border-color: #c0392b;
+            color: #fff;
+        }
+
         /* 解釋卡片 */
         #explanation-modal {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
@@ -413,6 +427,7 @@
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes floatUpPixel { 0% { transform: translate(-50%, 0); opacity: 0; } 20% { transform: translate(-50%, -20px); opacity: 1; } 100% { transform: translate(-50%, -60px); opacity: 0; } }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
         .shake { animation: shake 0.4s steps(4); }
         @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
 
@@ -503,6 +518,12 @@
             <div class="grid-container" id="char-grid"></div>
         </div>
 
+        <!-- 新增：開始戰鬥覆蓋層 -->
+        <div id="start-overlay" class="overlay">
+            <h1 style="color: #fff; text-shadow: 4px 4px 0 #000;">準備修煉</h1>
+            <button id="start-btn-large" class="btn" onclick="onStartBtnClick()">開始戰鬥</button>
+        </div>
+
         <!-- 結果畫面 -->
         <div id="result-overlay" class="overlay">
             <h1 id="result-title">渡劫成功</h1>
@@ -557,7 +578,7 @@
                     document.getElementById('idiom-input').value = text;
 
                     if (mode === 'play') {
-                        startGame();
+                        prepareGameFromQR();
                     }
                 } catch (e) { console.error(e); }
             } else {
@@ -584,7 +605,6 @@
             });
         }
 
-        // --- 使用 QRious 生成 QR Code ---
         function generateQR() {
             const input = document.getElementById('idiom-input').value;
             if(!input.trim()) return alert("請輸入內容");
@@ -624,12 +644,23 @@
             const input = document.getElementById('idiom-input').value;
             parseInput(input);
             if (idiomData.length === 0) return alert("請至少輸入一個四字成語 (格式: 成語:解釋)");
-            startGame();
-        }
-
-        function startGame() {
+            // 教師端直接開始
             document.getElementById('setup-screen').classList.remove('active');
             document.getElementById('game-screen').classList.add('active');
+            document.getElementById('start-overlay').style.display = 'none'; // 教師不需要按開始
+            resetGame();
+        }
+
+        // 學生 QR Code 掃描後，先顯示開始畫面
+        function prepareGameFromQR() {
+            document.getElementById('setup-screen').classList.remove('active');
+            document.getElementById('game-screen').classList.add('active');
+            document.getElementById('start-overlay').style.display = 'flex';
+        }
+
+        // 點擊「開始戰鬥」後觸發
+        function onStartBtnClick() {
+            document.getElementById('start-overlay').style.display = 'none';
             resetGame();
         }
 
