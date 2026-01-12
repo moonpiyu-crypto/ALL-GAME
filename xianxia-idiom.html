@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>成語仙俠傳：御劍衛道 (完整版)</title>
-    <!-- 引入穩定的 QR Code 生成庫 -->
+    <title>成語仙俠傳：御劍衛道 (無限制版)</title>
+    <!-- 引入 QRious -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <style>
         :root {
@@ -16,9 +16,7 @@
             --cyan-light: #e0f7fa;
             --cyan-dark: #006064;
             --text-color: #f4ecd8;
-            /* 標楷體字體堆疊 */
             --kai-font: "BiauKai", "DFKai-SB", "KaiU", "標楷體", "STKaiti", "Kaiti TC", "Kai", "AR PL UKai TW", "AR PL UKai CN", serif;
-            /* 像素字體堆疊 */
             --pixel-font: 'Press Start 2P', var(--kai-font), cursive;
         }
 
@@ -46,7 +44,6 @@
             image-rendering: crisp-edges;
         }
 
-        /* --- 畫面切換 --- */
         .screen {
             display: none;
             width: 100%;
@@ -59,15 +56,10 @@
             left: 0;
             z-index: 10;
         }
-        .screen.active {
-            display: flex;
-        }
+        .screen.active { display: flex; }
 
-        /* --- 1. 設定畫面 --- */
         #setup-screen {
-            background: 
-                linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),
-                url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="%23263238"/><path d="M0 0 L100 100 M100 0 L0 100" stroke="%2337474f" stroke-width="1"/></svg>');
+            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="%23263238"/><path d="M0 0 L100 100 M100 0 L0 100" stroke="%2337474f" stroke-width="1"/></svg>');
             padding: 20px;
             text-align: center;
             z-index: 20;
@@ -138,13 +130,11 @@
             border: 2px solid #ccc;
         }
 
-        /* --- 2. 遊戲主畫面 --- */
         #game-screen {
             justify-content: space-between;
             background: #2b2b2b;
         }
 
-        /* 上半部：戰場 */
         .battle-stage {
             height: 45%; 
             width: 100%;
@@ -166,7 +156,6 @@
         }
         @keyframes drift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
-        /* HUD */
         .hud-bar {
             position: absolute;
             top: 10px; left: 10px; right: 10px;
@@ -187,7 +176,6 @@
             border: 3px solid #fff;
         }
 
-        /* --- 主角 --- */
         #hero-container {
             position: absolute;
             bottom: 12%; 
@@ -236,7 +224,6 @@
         }
         .show-speech { opacity: 1 !important; animation: floatUpPixel 1s steps(10) forwards; }
 
-        /* --- 怪物 --- */
         .monster {
             position: absolute;
             bottom: 12%; 
@@ -287,7 +274,6 @@
             transition: left 0.3s linear, top 0.3s linear;
         }
 
-        /* 下半部：操作台 */
         .control-panel {
             flex: 1; 
             background: #34495e;
@@ -323,7 +309,6 @@
             box-shadow: inset -4px -4px 0 rgba(0,0,0,0.2);
         }
 
-        /* 網格容器 */
         .grid-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(18%, 1fr));
@@ -355,7 +340,6 @@
             background: #7f8c8d; border-color: #546e7a; color: #34495e;
         }
 
-        /* 覆蓋層 */
         .overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85);
@@ -378,9 +362,7 @@
         }
 
         /* Start Overlay */
-        #start-overlay {
-            background: rgba(0, 0, 0, 0.85);
-        }
+        #start-overlay { background: rgba(0, 0, 0, 0.85); }
         
         #start-btn-large {
             font-size: 2.5rem;
@@ -455,7 +437,6 @@
             <button class="btn btn-secondary" onclick="startGameDirectly()">開始修煉</button>
         </div>
         <div id="qr-container">
-            <!-- 使用 canvas 來配合 QRious -->
             <canvas id="qr-code-canvas"></canvas>
             <p style="font-size: 1.1rem; margin-top: 10px; text-shadow: 1px 1px 0 #fff; color: #333;">請弟子掃描玉簡進入幻境</p>
         </div>
@@ -464,7 +445,6 @@
     <!-- 2. 遊戲畫面 -->
     <div id="game-screen" class="screen">
         
-        <!-- 上方：戰場 -->
         <div class="battle-stage" id="battle-stage">
             <div class="cloud-bg"></div>
             <div class="hud-bar">
@@ -473,7 +453,6 @@
                 <div id="hp-display">❤️❤️❤️❤️❤️</div>
             </div>
 
-            <!-- 主角 -->
             <div id="hero-container">
                 <div id="hero-speech">劍來!</div>
                 <svg class="pixel-hero pixel-hero-idle" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
@@ -496,7 +475,6 @@
                 </svg>
             </div>
             
-            <!-- 成語解釋彈窗 -->
             <div id="explanation-modal">
                 <div class="exp-card">
                     <div id="exp-title" class="exp-title"></div>
@@ -506,7 +484,6 @@
             </div>
         </div>
 
-        <!-- 下方：操作面板 -->
         <div class="control-panel">
             <div class="input-display-area" id="input-slots">
                 <div class="slot"></div>
@@ -518,13 +495,11 @@
             <div class="grid-container" id="char-grid"></div>
         </div>
 
-        <!-- 新增：開始戰鬥覆蓋層 -->
         <div id="start-overlay" class="overlay">
             <h1 style="color: #fff; text-shadow: 4px 4px 0 #000;">準備修煉</h1>
             <button id="start-btn-large" class="btn" onclick="onStartBtnClick()">開始戰鬥</button>
         </div>
 
-        <!-- 結果畫面 -->
         <div id="result-overlay" class="overlay">
             <h1 id="result-title">渡劫成功</h1>
             <p id="result-msg">功德圓滿: <span style="font-family: var(--pixel-font);">0</span></p>
@@ -544,7 +519,7 @@
         const BOSS_MONSTERS = ['dragon', 'demon'];
 
         let idiomData = [];
-        let currentLevelIdioms = []; // 每個關卡的 5 個成語
+        let currentLevelIdioms = []; 
         let selectedChars = [];
         let heroHP = 5;
         let currentLevel = 1;
@@ -627,7 +602,7 @@
                 const qr = new QRious({
                     element: document.getElementById('qr-code-canvas'),
                     value: fullUrl,
-                    size: 250,
+                    size: 300, // 稍微加大尺寸以容納更多資料
                     level: 'L'
                 });
                 
