@@ -548,7 +548,17 @@
             if (data) {
                 try {
                     const jsonStr = decodeURIComponent(atob(data));
-                    idiomData = JSON.parse(jsonStr);
+                    const parsedData = JSON.parse(jsonStr);
+                    
+                    // Backward compatibility: check if it's array of objects or array of arrays
+                    if (parsedData.length > 0 && Array.isArray(parsedData[0])) {
+                        // New format: [[idiom, meaning], ...]
+                        idiomData = parsedData.map(item => ({ idiom: item[0], meaning: item[1] }));
+                    } else {
+                        // Old format: [{idiom:..., meaning:...}]
+                        idiomData = parsedData;
+                    }
+
                     let text = idiomData.map(item => `${item.idiom}:${item.meaning}`).join('\n');
                     document.getElementById('idiom-input').value = text;
                     startGame();
@@ -585,19 +595,30 @@
             parseInput(input);
             if (idiomData.length === 0) return alert("請確認格式：成語:解釋");
 
-            const jsonStr = JSON.stringify(idiomData);
-            const encoded = btoa(encodeURIComponent(jsonStr));
+            // Optimize data size: Convert to array of arrays
+            const compactData = idiomData.map(item => [item.idiom, item.meaning]);
+            const jsonStr = JSON.stringify(compactData);
             
-            // 使用目前的網址作為基礎，無論是 localhost 或 file://
+            // Standard base64 encoding for URL safety (handling utf8)
+            const encoded = btoa(encodeURIComponent(jsonStr)); 
+            
             const currentUrl = window.location.href.split('?')[0];
             const fullUrl = `${currentUrl}?data=${encoded}`;
             
-            // 清空舊的 QR
+            // Limit check (QR Code max capacity varies, but > 2000 chars risks failure in this lib)
+            if (fullUrl.length > 2000) {
+                return alert(`資料量過大 (${fullUrl.length} 字元)，請減少成語數量或縮短解釋。`);
+            }
+
             const container = document.getElementById('qr-code-display');
             container.innerHTML = "";
             
-            // 使用 qrcode.js 生成，加入 try-catch 和降低容錯等級
             try {
+                // Ensure qrcode.js is loaded
+                if (typeof QRCode === 'undefined') {
+                    throw new Error("QR Code library not loaded.");
+                }
+
                 new QRCode(container, {
                     text: fullUrl,
                     width: 250,
@@ -608,7 +629,7 @@
                 });
                 document.getElementById('qr-container').style.display = 'flex';
             } catch (e) {
-                alert("文字過多無法產生 QR Code，請減少成語數量。");
+                alert("QR Code 生成失敗，資料量可能超出上限或庫未載入。");
                 console.error(e);
             }
         }
