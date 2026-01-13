@@ -585,13 +585,13 @@
             </div>
         </div>
 
-        <!-- UI 按鈕：設定 -->
+        <!-- UI 按鈕：設定 (學生端會被隱藏) -->
         <div id="ui-controls">
             <button class="pixel-btn" onclick="openSettings()">⚙️ 遊戲設定</button>
         </div>
     </div>
 
-    <!-- 設定 Modal -->
+    <!-- 老師設定 Modal -->
     <div id="settings-modal" class="modal">
         <div class="modal-content pixel-panel">
             <div style="text-align: center; border-bottom: 2px dashed #3e2723; margin-bottom: 10px;">
@@ -648,6 +648,25 @@
         </div>
     </div>
 
+    <!-- 學生專屬開始 Modal -->
+    <div id="student-modal" class="modal">
+        <div class="modal-content pixel-panel" style="text-align: center; max-width: 450px; margin-top: 15%;">
+            <h2 style="font-family: var(--kai-font); color: #c62828; margin-bottom: 20px;">⚔️ 修仙試煉 ⚔️</h2>
+            <p style="font-size: 18px; margin-bottom: 20px;">老師傳來了挑戰書！<br>準備好迎戰鳳凰了嗎？</p>
+            
+            <div style="margin-bottom: 20px;">
+                <label style="font-family: var(--kai-font); font-size: 16px;">選擇難度：</label>
+                <select id="student-speed-select" style="padding: 8px; font-family: var(--kai-font); font-size: 16px;">
+                    <option value="9">簡單 (慢)</option>
+                    <option value="6" selected>普通</option>
+                    <option value="4">困難 (快)</option>
+                </select>
+            </div>
+
+            <button class="pixel-btn primary" style="width: 100%; padding: 15px; font-size: 22px;" onclick="studentStartGame()">🗡️ 拔劍出征</button>
+        </div>
+    </div>
+
     <!-- 遊戲結束 Modal (結算畫面) -->
     <div id="game-over-modal" class="modal">
         <div class="modal-content pixel-panel" id="game-over-content">
@@ -675,11 +694,13 @@
         let isGameRunning = false;
         let spawnInterval;
         let baseSpeed = 6;
+        let isStudentMode = false; // 標記是否為學生模式
         
         let merit = 0;
         let startTime = 0;
         
         const settingsModal = document.getElementById('settings-modal');
+        const studentModal = document.getElementById('student-modal');
         const gameOverModal = document.getElementById('game-over-modal');
         const targetContent = document.getElementById('target-content');
         const bossSvg = document.querySelector('.boss-svg');
@@ -747,17 +768,15 @@
                 }
             }
             
-            openSettings();
-
+            // 判斷啟動模式
             if (hasData) {
-                const content = document.getElementById("words-content");
-                const btn = document.getElementById("words-collapsible");
-                content.style.maxHeight = null;
-                btn.classList.remove("active");
-                document.getElementById('settings-title').innerText = "⚔️ 準備挑戰";
-
-                // 隱藏學生端設定按鈕
+                // 學生模式：隱藏設定按鈕，跳過設定畫面，顯示學生專屬開始畫面
+                isStudentMode = true;
                 document.getElementById('ui-controls').style.display = 'none';
+                openStudentStart();
+            } else {
+                // 老師模式：顯示完整設定畫面
+                openSettings();
             }
         };
 
@@ -777,29 +796,52 @@
         }
 
         function openSettings() {
+            resetGameStateForMenu();
+            settingsModal.style.display = 'block';
+            studentModal.style.display = 'none';
+        }
+
+        function openStudentStart() {
+            resetGameStateForMenu();
+            settingsModal.style.display = 'none';
+            studentModal.style.display = 'block';
+        }
+
+        function resetGameStateForMenu() {
             isGameRunning = false;
             clearInterval(spawnInterval);
             document.querySelectorAll('.word-orb').forEach(e => e.remove());
-            // 清除可能殘留的飛劍
             document.querySelectorAll('.projectile').forEach(e => e.remove());
-            
-            settingsModal.style.display = 'block';
         }
 
-        // 新增：重置遊戲 (回到設定頁面，不重整網頁)
+        // 新增：重置遊戲 (回到對應的設定頁面)
         function resetGame() {
             gameOverModal.style.display = 'none';
             // 讓 BOSS 恢復原狀
             bossSvg.classList.remove('boss-dead');
             bossSvg.style.opacity = '1';
             bossSvg.style.transform = 'scale(1)';
-            bossSvg.style.clipPath = 'none'; // 重置溶解特效
+            bossSvg.style.clipPath = 'none';
 
-            openSettings();
+            if (isStudentMode) {
+                openStudentStart();
+            } else {
+                openSettings();
+            }
         }
 
+        // 學生版開始遊戲
+        function studentStartGame() {
+            // 從學生選單讀取速度
+            const speedVal = document.getElementById('student-speed-select').value;
+            // 同步給主邏輯使用
+            document.getElementById('speed-select').value = speedVal;
+            
+            startGame();
+        }
+
+        // 老師版/通用開始遊戲邏輯
         function startGame() {
-            // 強制清理場上殘留物
             document.querySelectorAll('.word-orb').forEach(e => e.remove());
             document.querySelectorAll('.projectile').forEach(e => e.remove());
 
@@ -840,6 +882,7 @@
             currentTargetIndex = 0;
             isGameRunning = true;
             settingsModal.style.display = 'none';
+            studentModal.style.display = 'none';
             gameOverModal.style.display = 'none';
             
             bossSvg.classList.remove('boss-dead');
@@ -917,7 +960,6 @@
             e.stopPropagation();
 
             if (orb.dataset.isCorrect === "true") {
-                // Correct logic
                 orb.classList.add('correct');
                 orb.style.animationPlayState = 'paused';
                 
@@ -930,19 +972,18 @@
                     setTimeout(updateTargetDisplay, 600);
                 }
             } else {
-                // Wrong logic
                 orb.classList.add('wrong');
                 orb.style.animationPlayState = 'paused';
                 
-                addMerit(-50); // Deduct 50 merit points
+                addMerit(-50); 
 
-                setTimeout(() => orb.remove(), 400); // Remove after shake animation
+                setTimeout(() => orb.remove(), 400); 
             }
         }
 
         function addMerit(amount) {
             merit += amount;
-            if (merit < 0) merit = 0; // Prevent negative merit
+            if (merit < 0) merit = 0; 
             meritValue.innerText = merit;
             
             const floatText = document.createElement('div');
@@ -953,7 +994,7 @@
                 floatText.style.color = '#ffd700';
             } else {
                 floatText.innerText = amount + " 功德";
-                floatText.style.color = '#ff5252'; // Red color for deduction
+                floatText.style.color = '#ff5252'; 
             }
 
             floatText.style.left = '20px';
@@ -1098,7 +1139,6 @@
 
         function copyLink() {
             const linkInput = document.getElementById('game-link');
-            // 如果目前是空白的，先自動生成
             if (!linkInput.value) {
                 generateQR();
             }
@@ -1119,12 +1159,8 @@
             }
         }
 
-        // 修正：直接開啟功能
         function openLink() {
-            // 1. 強制先執行產生 QR Code，確保網址是最新的輸入內容
             generateQR();
-            
-            // 2. 取得網址並開啟
             const url = document.getElementById('game-link').value;
             if(url) {
                 window.open(url, '_blank');
