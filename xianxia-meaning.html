@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>御劍伏魔：鳳凰決戰</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #2b2b2b;
+            --paper-color: #f4ecd8;
+            --panel-color: #5d4037;
+            --border-light: #8d6e63;
+            --border-dark: #3e2723;
+            --accent-color: #d32f2f;
+            --gold-color: #ffc107;
+            --text-color: #3e2723;
+            --pixel-font: 'Press Start 2P', cursive;
+            --kai-font: "BiauKai", "DFKai-SB", "KaiU", "標楷體", serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            font-family: var(--kai-font);
+            overflow: hidden;
+        }
+
+        canvas, img, svg {
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to bottom, #4fc3f7, #81d4fa, #b3e5fc);
+            overflow: hidden;
+        }
+
+        /* 像素雲層 */
+        .cloud-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .pixel-cloud {
+            position: absolute;
+            fill: #ffffff;
+            opacity: 0.8;
+            animation: floatCloud linear infinite;
+        }
+
+        @keyframes floatCloud {
+            from { transform: translateX(100vw); }
+            to { transform: translateX(-200px); }
+        }
+
+        .mountain-bg {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 30%;
+            background-image: 
+                linear-gradient(to top right, #388e3c 25%, transparent 26%),
+                linear-gradient(to top left, #2e7d32 25%, transparent 26%);
+            background-size: 50px 50px;
+            opacity: 0.6;
+            z-index: 0;
+        }
+
+        /* UI 框架 - 復古像素風格 */
+        .pixel-panel {
+            background-color: var(--paper-color);
+            border-top: 4px solid #fff;
+            border-left: 4px solid #fff;
+            border-right: 4px solid #000;
+            border-bottom: 4px solid #000;
+            box-shadow: 4px 4px 0px rgba(0,0,0,0.5);
+            padding: 10px;
+            position: relative;
+        }
+
+        /* 功德值顯示 (左下角) */
+        #merit-display {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            z-index: 80;
+            min-width: 140px;
+            text-align: center;
+        }
+
+        .merit-label {
+            font-family: var(--kai-font);
+            font-weight: bold;
+            font-size: 16px;
+            color: #d32f2f;
+            margin-bottom: 5px;
+        }
+
+        #merit-value {
+            font-family: var(--pixel-font);
+            font-size: 18px;
+            color: #3e2723;
+        }
+
+        /* 頂部提示區 (中間) */
+        #target-display {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            max-width: 500px;
+            z-index: 10;
+            text-align: center;
+        }
+
+        #target-label {
+            font-size: 1rem;
+            color: #555;
+            margin-bottom: 5px;
+            font-family: var(--kai-font);
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        #target-content {
+            font-size: 1.5rem;
+            color: #d84315;
+            font-weight: bold;
+            text-shadow: 2px 2px 0px #fff;
+            line-height: 1.3;
+        }
+
+        /* 戰鬥舞台 */
+        #battle-stage {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 5;
+            overflow: hidden;
+        }
+
+        /* 像素主角 */
+        #hero-container {
+            position: absolute;
+            left: 10%;
+            bottom: 15%;
+            width: 128px;
+            height: 128px;
+            z-index: 20;
+            transition: transform 0.1s;
+        }
+
+        .hero-svg {
+            width: 100%;
+            height: 100%;
+            animation: heroIdle 1s steps(2) infinite;
+        }
+
+        @keyframes heroIdle {
+            0% { transform: translateY(0); }
+            50% { transform: translateY(2px); }
+        }
+
+        .hero-cast {
+            animation: heroCast 0.4s steps(2);
+        }
+
+        @keyframes heroCast {
+            0% { filter: brightness(1.5); transform: translateX(5px); }
+            50% { filter: brightness(2); transform: translateX(10px); }
+            100% { filter: brightness(1); transform: translateX(0); }
+        }
+
+        /* 像素 BOSS (鳳凰) */
+        #boss-container {
+            position: absolute;
+            right: 10%;
+            top: 25%;
+            width: 192px;
+            height: 192px;
+            z-index: 15;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .boss-svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.3));
+            animation: bossFloat 2s ease-in-out infinite;
+        }
+
+        @keyframes bossFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+
+        .boss-hit {
+            animation: bossDamage 0.4s;
+        }
+
+        @keyframes bossDamage {
+            0% { filter: brightness(5) sepia(1) saturate(5) hue-rotate(-50deg); transform: translateX(0); }
+            20% { transform: translateX(-10px); }
+            40% { transform: translateX(10px); }
+            60% { transform: translateX(-10px); }
+            80% { transform: translateX(10px); }
+            100% { filter: none; transform: translateX(0); }
+        }
+        
+        .boss-dead {
+             animation: pixelDissolve 1.5s forwards;
+        }
+
+        @keyframes pixelDissolve {
+            0% { clip-path: inset(0 0 0 0); filter: grayscale(1); }
+            20% { clip-path: inset(10% 0 20% 10%); opacity: 0.8; }
+            40% { clip-path: inset(30% 20% 10% 30%); opacity: 0.6; transform: scale(1.1); }
+            60% { clip-path: inset(50% 10% 40% 50%); opacity: 0.4; transform: scale(1.2); }
+            80% { clip-path: inset(80% 50% 60% 20%); opacity: 0.2; }
+            100% { clip-path: inset(100% 100% 100% 100%); opacity: 0; transform: scale(1.5); }
+        }
+
+        /* 血條樣式 */
+        #boss-hp-wrapper {
+            width: 100%;
+            height: 24px;
+            background: #222;
+            border: 4px solid #000;
+            position: relative;
+            margin-top: 10px;
+        }
+
+        #boss-hp-bar {
+            width: 100%;
+            height: 100%;
+            background: #d32f2f;
+            image-rendering: pixelated;
+            background-image: linear-gradient(90deg, transparent 50%, rgba(0,0,0,0.1) 50%);
+            background-size: 4px 100%; 
+            transition: width 0.2s steps(5);
+        }
+
+        #boss-hp-text {
+            position: absolute;
+            top: -25px;
+            left: 0;
+            width: 100%;
+            color: #fff;
+            font-family: var(--pixel-font);
+            font-size: 12px;
+            text-align: center;
+            text-shadow: 2px 2px 0 #000;
+        }
+
+        /* 語詞氣泡 */
+        .word-orb {
+            position: absolute;
+            background: #fff;
+            color: #000;
+            padding: 8px 12px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 18;
+            white-space: nowrap;
+            border-top: 3px solid #ddd;
+            border-left: 3px solid #ddd;
+            border-right: 3px solid #555;
+            border-bottom: 3px solid #555;
+            box-shadow: 3px 3px 0px rgba(0,0,0,0.3);
+            animation: floatLeft linear forwards;
+        }
+
+        .word-orb:active {
+            transform: translate(2px, 2px);
+            box-shadow: 1px 1px 0px rgba(0,0,0,0.3);
+            border-top: 3px solid #555;
+            border-left: 3px solid #555;
+            border-right: 3px solid #ddd;
+            border-bottom: 3px solid #ddd;
+        }
+
+        .word-orb.correct {
+            background: #a5d6a7;
+            border-color: #2e7d32;
+        }
+
+        .word-orb.wrong {
+            background: #ef9a9a;
+            border-color: #c62828;
+            animation: shake 0.4s;
+        }
+
+        @keyframes floatLeft {
+            from { left: 110%; }
+            to { left: -200px; }
+        }
+        
+        @keyframes shake {
+            0% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            50% { transform: translateX(4px); }
+            75% { transform: translateX(-4px); }
+            100% { transform: translateX(0); }
+        }
+
+        /* 飛劍 */
+        .projectile {
+            position: absolute;
+            width: 48px;
+            height: 16px;
+            z-index: 19;
+            pointer-events: none;
+            filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.5));
+        }
+
+        /* 浮動傷害/功德數字 */
+        .damage-text {
+            position: absolute;
+            color: #ffeb3b;
+            font-family: var(--kai-font);
+            font-weight: bold;
+            font-size: 20px;
+            text-shadow: 2px 2px 0 #d32f2f;
+            z-index: 25;
+            animation: floatUp 1s forwards;
+            pointer-events: none;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-50px); opacity: 0; }
+        }
+
+        /* Modal */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 100; 
+            left: 0; top: 0; width: 100%; height: 100%; 
+            background-color: rgba(0,0,0,0.8); 
+            backdrop-filter: blur(2px);
+            overflow-y: auto;
+        }
+
+        .modal-content {
+            margin: 5% auto; 
+            width: 90%; 
+            max-width: 600px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #3e2723;
+            font-family: var(--kai-font);
+            background: #fff;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);
+            resize: vertical;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            font-size: 14px;
+            border: 2px solid #3e2723;
+            background: #eee;
+            color: #555;
+            font-family: sans-serif;
+            margin-bottom: 5px;
+        }
+
+        /* 摺疊區塊樣式 */
+        .collapsible {
+            background-color: #6d4c41;
+            color: white;
+            cursor: pointer;
+            padding: 10px;
+            width: 100%;
+            border: none;
+            text-align: left;
+            outline: none;
+            font-size: 15px;
+            font-family: var(--kai-font);
+            border: 2px solid #3e2723;
+            margin-bottom: 5px;
+        }
+
+        .active, .collapsible:hover {
+            background-color: #5d4037;
+        }
+
+        .collapsible:after {
+            content: '\002B';
+            color: white;
+            font-weight: bold;
+            float: right;
+            margin-left: 5px;
+        }
+
+        .active:after {
+            content: "\2212";
+        }
+
+        .content {
+            padding: 0 10px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.2s ease-out;
+            background-color: #f1f1f1;
+            border-left: 2px solid #3e2723;
+            border-right: 2px solid #3e2723;
+            margin-bottom: 10px;
+        }
+
+        .pixel-btn {
+            background-color: #6d4c41;
+            color: #fff;
+            border: none;
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            font-family: var(--kai-font);
+            margin: 5px;
+            text-decoration: none;
+            display: inline-block;
+            border-top: 4px solid #8d6e63;
+            border-left: 4px solid #8d6e63;
+            border-right: 4px solid #3e2723;
+            border-bottom: 4px solid #3e2723;
+            box-shadow: 3px 3px 0 #000;
+        }
+
+        .pixel-btn:active {
+            transform: translate(3px, 3px);
+            box-shadow: 0 0 0 #000;
+            border-top: 4px solid #3e2723;
+            border-left: 4px solid #3e2723;
+            border-right: 4px solid #8d6e63;
+            border-bottom: 4px solid #8d6e63;
+        }
+
+        .pixel-btn.primary { background-color: #c62828; border-color: #e57373 #b71c1c #b71c1c #e57373; }
+        .pixel-btn.secondary { background-color: #0277bd; border-color: #4fc3f7 #01579b #01579b #4fc3f7; }
+        .pixel-btn.success { background-color: #2e7d32; border-color: #81c784 #1b5e20 #1b5e20 #81c784; }
+
+        #ui-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 90;
+        }
+
+        /* 結算畫面 */
+        #game-over-content {
+            text-align: center;
+            color: #fff;
+        }
+        #game-over-title {
+            font-family: var(--kai-font);
+            font-weight: bold;
+            font-size: 36px;
+            color: #ffeb3b;
+            text-shadow: 4px 4px 0 #d32f2f;
+            margin-bottom: 10px;
+            letter-spacing: 5px;
+        }
+        
+        .score-row {
+            font-size: 1.2rem;
+            margin: 10px 0;
+            font-family: var(--kai-font);
+        }
+        
+        .final-merit {
+            font-size: 2rem;
+            color: #ffeb3b;
+            text-shadow: 2px 2px 0 #000;
+            font-family: var(--pixel-font);
+            margin: 20px 0;
+        }
+        
+        /* 連結區塊 */
+        #link-section {
+            margin-top: 15px;
+            padding: 10px;
+            background: #fff;
+            border: 2px solid #3e2723;
+            display: none;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- 遠景山脈 -->
+        <div class="mountain-bg"></div>
+
+        <!-- 雲層 -->
+        <div class="cloud-layer" id="cloud-layer"></div>
+
+        <!-- 功德顯示 (左下角) -->
+        <div id="merit-display" class="pixel-panel">
+            <div class="merit-label">累積功德</div>
+            <div id="merit-value">0</div>
+        </div>
+
+        <!-- 上半部提示區 (中間) -->
+        <div id="target-display" class="pixel-panel">
+            <div id="target-label">當前任務目標</div>
+            <div id="target-content">準備...</div>
+        </div>
+
+        <!-- 戰鬥區域 -->
+        <div id="battle-stage">
+            <!-- 英雄 -->
+            <div id="hero-container">
+                <svg viewBox="0 0 32 32" class="hero-svg">
+                    <path fill="#e3f2fd" d="M12 10 h8 v14 h-8 z" />
+                    <path fill="#2196f3" d="M10 10 h2 v16 h-2 z" />
+                    <path fill="#2196f3" d="M20 10 h2 v16 h-2 z" />
+                    <path fill="#1565c0" d="M11 16 h10 v2 h-10 z" />
+                    <path fill="#e3f2fd" d="M6 12 h4 v8 h-4 z" /> 
+                    <path fill="#90caf9" d="M6 20 h4 v2 h-4 z" />
+                    <path fill="#e3f2fd" d="M22 12 h4 v8 h-4 z" />
+                    <rect x="12" y="4" width="8" height="6" fill="#ffccbc" />
+                    <rect x="12" y="2" width="8" height="3" fill="#212121" />
+                    <rect x="11" y="3" width="1" height="6" fill="#212121" />
+                    <rect x="20" y="3" width="1" height="6" fill="#212121" />
+                    <rect x="14" y="2" width="4" height="1" fill="#424242" />
+                    <rect x="14" y="6" width="1" height="1" fill="#000" />
+                    <rect x="17" y="6" width="1" height="1" fill="#000" />
+                </svg>
+            </div>
+
+            <!-- BOSS: 鳳凰 -->
+            <div id="boss-container">
+                <div id="boss-hp-text">HP: 100%</div>
+                <div id="boss-hp-wrapper">
+                    <div id="boss-hp-bar"></div>
+                </div>
+                
+                <svg viewBox="0 0 48 48" class="boss-svg" style="margin-top:10px;">
+                    <path fill="#ff5722" d="M2 20 h10 v10 h-10 z" />
+                    <path fill="#d84315" d="M36 20 h10 v10 h-10 z" />
+                    <path fill="#ffccbc" d="M4 18 h8 v2 h-8 z" />
+                    <path fill="#ffccbc" d="M36 18 h8 v2 h-8 z" />
+                    <path fill="#c62828" d="M18 15 h12 v20 h-12 z" />
+                    <path fill="#ffeb3b" d="M22 15 h4 v20 h-4 z" />
+                    <rect x="20" y="8" width="8" height="7" fill="#d32f2f" />
+                    <rect x="26" y="10" width="1" height="1" fill="#fff" />
+                    <path fill="#fbc02d" d="M22 6 h4 v2 h-4 z" />
+                    <path fill="#fbc02d" d="M23 11 h-3 v2 h3 z" />
+                    <path fill="#e65100" d="M20 35 h2 v8 h-2 z" />
+                    <path fill="#ef6c00" d="M26 35 h2 v8 h-2 z" />
+                    <path fill="#ffa726" d="M23 35 h2 v10 h-2 z" />
+                </svg>
+            </div>
+        </div>
+
+        <!-- UI 按鈕：設定 -->
+        <div id="ui-controls">
+            <button class="pixel-btn" onclick="openSettings()">⚙️ 遊戲設定</button>
+        </div>
+    </div>
+
+    <!-- 設定 Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content pixel-panel">
+            <div style="text-align: center; border-bottom: 2px dashed #3e2723; margin-bottom: 10px;">
+                <h2 id="settings-title" style="font-family: var(--kai-font); color: #c62828;">📜 遊戲設定</h2>
+            </div>
+            
+            <!-- 題目區塊：可摺疊 -->
+            <button type="button" class="collapsible" id="words-collapsible">題目設定 (點擊展開/收合)</button>
+            <div class="content" id="words-content" style="max-height: 500px;"> 
+                <p style="font-size: 14px; margin: 5px 0; color: #555;">格式：語詞 [逗號] 解釋</p>
+                <textarea id="input-words">
+按圖索驥,比喻做事拘泥於成法，不知變通。
+杯弓蛇影,比喻因疑慮而引起的恐懼。
+破釜沉舟,比喻做事果決，義無反顧。
+指鹿為馬,比喻顛倒是非。
+掩耳盜鈴,比喻自欺欺人。
+            </textarea>
+            </div>
+
+            <div style="margin-top: 15px;">
+                <label>難度 (速度): </label>
+                <select id="speed-select" style="padding: 5px; font-family: var(--kai-font);">
+                    <option value="9">簡單 (慢)</option>
+                    <option value="6" selected>普通</option>
+                    <option value="4">困難 (快)</option>
+                </select>
+            </div>
+
+            <br>
+            <div style="text-align: center;">
+                <button class="pixel-btn primary" style="width: 100%; padding: 15px; font-size: 20px;" onclick="startGame()">⚔️ 開始降妖</button>
+            </div>
+            
+            <hr style="border: 1px dashed #888; margin: 20px 0;">
+            
+            <!-- 分享區塊 -->
+            <div style="text-align: center;">
+                <h3 style="margin-bottom: 10px; font-family: var(--kai-font);">📲 分享給學生</h3>
+                <div id="qrcode" style="margin: 10px auto; background: #fff; padding: 5px; display: inline-block; border: 2px solid #000; min-height: 150px;"></div>
+                
+                <!-- 遊戲連結生成區 -->
+                <div id="link-section">
+                    <p style="font-size: 14px; color: #d32f2f; margin-bottom: 5px; font-weight: bold;">遊戲連結 (複製傳給學生)</p>
+                    <input type="text" id="game-link" readonly onclick="this.select()">
+                    <div style="margin-top: 5px; display: flex; justify-content: center; gap: 10px;">
+                        <button class="pixel-btn secondary" onclick="copyLink()">📋 複製連結</button>
+                        <button class="pixel-btn success" onclick="openLink()">🚀 直接開啟</button>
+                    </div>
+                </div>
+
+                <br>
+                <button class="pixel-btn secondary" onclick="generateQR()">產生 QR Code 與連結</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 遊戲結束 Modal (結算畫面) -->
+    <div id="game-over-modal" class="modal">
+        <div class="modal-content pixel-panel" id="game-over-content">
+            <div id="game-over-title">功德圓滿</div>
+            
+            <div class="score-row">基礎功德: <span id="score-base">0</span></div>
+            <div class="score-row">速度加成: <span id="score-bonus">0</span></div>
+            <hr style="border: 1px dashed #fff; margin: 15px 0;">
+            
+            <div>總計功德</div>
+            <div class="final-merit" id="score-total">0</div>
+
+            <br>
+            <!-- 修正：改用 resetGame 而非 location.reload -->
+            <button class="pixel-btn primary" onclick="resetGame()">🔄 重入輪迴</button>
+        </div>
+    </div>
+
+    <script>
+        // 遊戲狀態變數
+        let gameData = [];
+        let currentTargetIndex = 0;
+        let bossMaxHP = 0;
+        let bossCurrentHP = 0;
+        let isGameRunning = false;
+        let spawnInterval;
+        let baseSpeed = 6;
+        
+        let merit = 0;
+        let startTime = 0;
+        
+        const settingsModal = document.getElementById('settings-modal');
+        const gameOverModal = document.getElementById('game-over-modal');
+        const targetContent = document.getElementById('target-content');
+        const bossSvg = document.querySelector('.boss-svg');
+        const bossHpBar = document.getElementById('boss-hp-bar');
+        const bossHpText = document.getElementById('boss-hp-text');
+        const battleStage = document.getElementById('battle-stage');
+        const heroContainer = document.getElementById('hero-container');
+        const heroSvg = document.querySelector('.hero-svg');
+        const meritValue = document.getElementById('merit-value');
+
+        function initClouds() {
+            const container = document.getElementById('cloud-layer');
+            for(let i=0; i<5; i++) {
+                createCloud(container, Math.random() * 100);
+            }
+        }
+
+        function createCloud(container, startLeft) {
+            const svgNS = "http://www.w3.org/2000/svg";
+            const cloud = document.createElementNS(svgNS, "svg");
+            cloud.setAttribute("viewBox", "0 0 20 10");
+            cloud.setAttribute("class", "pixel-cloud");
+            cloud.style.width = (80 + Math.random() * 60) + 'px';
+            cloud.style.top = (Math.random() * 40) + '%';
+            cloud.style.left = startLeft + '%';
+            
+            const duration = 20 + Math.random() * 30;
+            cloud.style.animationDuration = duration + 's';
+
+            const paths = [
+                {x: 4, y: 4, w: 12, h: 4},
+                {x: 6, y: 2, w: 6, h: 4},
+                {x: 2, y: 5, w: 4, h: 3}
+            ];
+            
+            paths.forEach(p => {
+                const rect = document.createElementNS(svgNS, "rect");
+                rect.setAttribute("x", p.x);
+                rect.setAttribute("y", p.y);
+                rect.setAttribute("width", p.w);
+                rect.setAttribute("height", p.h);
+                cloud.appendChild(rect);
+            });
+
+            container.appendChild(cloud);
+        }
+
+        window.onload = function() {
+            initClouds();
+            setupCollapsible();
+
+            const urlParams = new URLSearchParams(window.location.search);
+            let hasData = false;
+            
+            if(urlParams.has('data')) {
+                try {
+                    const compressed = urlParams.get('data');
+                    const raw = decodeURIComponent(atob(compressed));
+                    if(raw) {
+                        document.getElementById('input-words').value = raw;
+                        hasData = true;
+                    }
+                } catch(e) {
+                    console.error("解析失敗", e);
+                }
+            }
+            
+            openSettings();
+
+            if (hasData) {
+                const content = document.getElementById("words-content");
+                const btn = document.getElementById("words-collapsible");
+                content.style.maxHeight = null;
+                btn.classList.remove("active");
+                document.getElementById('settings-title').innerText = "⚔️ 準備挑戰";
+
+                // 隱藏學生端設定按鈕
+                document.getElementById('ui-controls').style.display = 'none';
+            }
+        };
+
+        function setupCollapsible() {
+            var coll = document.getElementsByClassName("collapsible");
+            for (var i = 0; i < coll.length; i++) {
+                coll[i].addEventListener("click", function() {
+                    this.classList.toggle("active");
+                    var content = this.nextElementSibling;
+                    if (content.style.maxHeight){
+                        content.style.maxHeight = null;
+                    } else {
+                        content.style.maxHeight = content.scrollHeight + "px";
+                    } 
+                });
+            }
+        }
+
+        function openSettings() {
+            isGameRunning = false;
+            clearInterval(spawnInterval);
+            document.querySelectorAll('.word-orb').forEach(e => e.remove());
+            // 清除可能殘留的飛劍
+            document.querySelectorAll('.projectile').forEach(e => e.remove());
+            
+            settingsModal.style.display = 'block';
+        }
+
+        // 新增：重置遊戲 (回到設定頁面，不重整網頁)
+        function resetGame() {
+            gameOverModal.style.display = 'none';
+            // 讓 BOSS 恢復原狀
+            bossSvg.classList.remove('boss-dead');
+            bossSvg.style.opacity = '1';
+            bossSvg.style.transform = 'scale(1)';
+            bossSvg.style.clipPath = 'none'; // 重置溶解特效
+
+            openSettings();
+        }
+
+        function startGame() {
+            // 強制清理場上殘留物
+            document.querySelectorAll('.word-orb').forEach(e => e.remove());
+            document.querySelectorAll('.projectile').forEach(e => e.remove());
+
+            const rawText = document.getElementById('input-words').value.trim();
+            const lines = rawText.split('\n');
+            const parsed = [];
+
+            lines.forEach(line => {
+                line = line.trim();
+                if (line) {
+                    let parts = line.split(/[,，\s]+/);
+                    if (parts.length >= 2) {
+                        let term = parts[0];
+                        let def = line.substring(term.length).trim().replace(/^[,，\s]+/, '');
+                        parsed.push({ term: term, def: def });
+                    } else {
+                        parsed.push({ term: line, def: line });
+                    }
+                }
+            });
+
+            if (parsed.length === 0) {
+                alert("請至少輸入一個語詞！");
+                return;
+            }
+
+            baseSpeed = parseInt(document.getElementById('speed-select').value);
+            gameData = shuffleArray(parsed);
+            bossMaxHP = gameData.length;
+            bossCurrentHP = bossMaxHP;
+            
+            merit = 0;
+            meritValue.innerText = merit;
+            startTime = Date.now();
+
+            updateBossHP();
+
+            currentTargetIndex = 0;
+            isGameRunning = true;
+            settingsModal.style.display = 'none';
+            gameOverModal.style.display = 'none';
+            
+            bossSvg.classList.remove('boss-dead');
+            bossSvg.style.opacity = 1;
+
+            updateTargetDisplay();
+            startSpawning();
+        }
+
+        function updateTargetDisplay() {
+            if (currentTargetIndex < gameData.length) {
+                targetContent.innerText = gameData[currentTargetIndex].def;
+                targetContent.style.opacity = 0;
+                setTimeout(() => targetContent.style.opacity = 1, 100);
+            } else {
+                targetContent.innerText = "給他最後一擊！";
+            }
+        }
+
+        function updateBossHP() {
+            const pct = (bossCurrentHP / bossMaxHP) * 100;
+            bossHpBar.style.width = pct + '%';
+            bossHpText.innerText = `${bossCurrentHP}/${bossMaxHP}`;
+            
+            if (bossCurrentHP <= 0) {
+                setTimeout(() => showGameOver(true), 500);
+            }
+        }
+
+        function startSpawning() {
+            if (spawnInterval) clearInterval(spawnInterval);
+            spawnInterval = setInterval(() => {
+                if (!isGameRunning) return;
+                spawnOrb();
+            }, 2000);
+        }
+
+        function spawnOrb() {
+            if (currentTargetIndex >= gameData.length) return;
+
+            const orb = document.createElement('div');
+            orb.className = 'word-orb pixel-panel';
+            
+            const isCorrect = Math.random() < 0.35;
+            let orbData;
+
+            if (isCorrect) {
+                orbData = gameData[currentTargetIndex];
+                orb.dataset.isCorrect = "true";
+            } else {
+                let distractors = gameData.filter((_, i) => i !== currentTargetIndex);
+                if (distractors.length === 0) {
+                    orbData = gameData[currentTargetIndex];
+                    orb.dataset.isCorrect = "true";
+                } else {
+                    orbData = distractors[Math.floor(Math.random() * distractors.length)];
+                    orb.dataset.isCorrect = "false";
+                }
+            }
+
+            orb.innerText = orbData.term;
+            
+            const randomTop = 15 + Math.floor(Math.random() * 55); 
+            orb.style.top = randomTop + '%';
+            orb.style.animationDuration = baseSpeed + 's';
+
+            orb.onclick = (e) => handleOrbClick(e, orb);
+            battleStage.appendChild(orb);
+
+            orb.addEventListener('animationend', () => orb.remove());
+        }
+
+        function handleOrbClick(e, orb) {
+            if (!isGameRunning) return;
+            e.stopPropagation();
+
+            if (orb.dataset.isCorrect === "true") {
+                // Correct logic
+                orb.classList.add('correct');
+                orb.style.animationPlayState = 'paused';
+                
+                addMerit(100);
+                performAttack();
+
+                setTimeout(() => orb.remove(), 200);
+                currentTargetIndex++;
+                if (currentTargetIndex < gameData.length) {
+                    setTimeout(updateTargetDisplay, 600);
+                }
+            } else {
+                // Wrong logic
+                orb.classList.add('wrong');
+                orb.style.animationPlayState = 'paused';
+                
+                addMerit(-50); // Deduct 50 merit points
+
+                setTimeout(() => orb.remove(), 400); // Remove after shake animation
+            }
+        }
+
+        function addMerit(amount) {
+            merit += amount;
+            if (merit < 0) merit = 0; // Prevent negative merit
+            meritValue.innerText = merit;
+            
+            const floatText = document.createElement('div');
+            floatText.className = 'damage-text';
+            
+            if (amount >= 0) {
+                floatText.innerText = "+" + amount + " 功德";
+                floatText.style.color = '#ffd700';
+            } else {
+                floatText.innerText = amount + " 功德";
+                floatText.style.color = '#ff5252'; // Red color for deduction
+            }
+
+            floatText.style.left = '20px';
+            floatText.style.bottom = '60px';
+            floatText.style.fontSize = "16px";
+            document.body.appendChild(floatText);
+            setTimeout(() => floatText.remove(), 1000);
+        }
+
+        function performAttack() {
+            heroSvg.classList.add('hero-cast');
+            setTimeout(() => heroSvg.classList.remove('hero-cast'), 400);
+
+            const sword = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            sword.setAttribute("viewBox", "0 0 24 8");
+            sword.setAttribute("class", "projectile");
+            
+            sword.innerHTML = `
+                <rect x="4" y="3" width="16" height="2" fill="#cfd8dc" />
+                <rect x="2" y="3" width="2" height="2" fill="#455a64" />
+                <rect x="20" y="3" width="2" height="2" fill="#cfd8dc" />
+                <rect x="6" y="2" width="2" height="4" fill="#90a4ae" />
+            `;
+
+            sword.style.left = (heroContainer.offsetLeft + 100) + 'px';
+            sword.style.top = (heroContainer.offsetTop + 40) + 'px';
+            document.body.appendChild(sword);
+
+            const bossRect = document.getElementById('boss-container').getBoundingClientRect();
+            const targetX = bossRect.left + bossRect.width / 2;
+            const targetY = bossRect.top + bossRect.height / 2;
+
+            const animation = sword.animate([
+                { transform: 'translate(0, 0)' },
+                { transform: `translate(${targetX - parseFloat(sword.style.left)}px, ${targetY - parseFloat(sword.style.top)}px)` }
+            ], {
+                duration: 300,
+                easing: 'linear'
+            });
+
+            animation.onfinish = () => {
+                sword.remove();
+                hitBoss();
+            };
+        }
+
+        function hitBoss() {
+            bossSvg.classList.add('boss-hit');
+            setTimeout(() => bossSvg.classList.remove('boss-hit'), 400);
+
+            const damage = document.createElement('div');
+            damage.className = 'damage-text';
+            damage.innerText = "-1";
+            const bossRect = document.getElementById('boss-container').getBoundingClientRect();
+            damage.style.left = (bossRect.left + 50) + 'px';
+            damage.style.top = (bossRect.top) + 'px';
+            document.body.appendChild(damage);
+            setTimeout(() => damage.remove(), 1000);
+
+            bossCurrentHP--;
+            updateBossHP();
+        }
+
+        function showGameOver(isWin) {
+            isGameRunning = false;
+            clearInterval(spawnInterval);
+            document.querySelectorAll('.word-orb').forEach(e => e.remove());
+
+            if (isWin) {
+                bossSvg.classList.add('boss-dead');
+                
+                const endTime = Date.now();
+                const durationSec = (endTime - startTime) / 1000;
+                const standardTime = bossMaxHP * 10;
+                let speedBonus = Math.floor(Math.max(0, (standardTime - durationSec) * 20));
+                
+                document.getElementById('game-over-title').innerText = "功德圓滿";
+                document.getElementById('game-over-title').style.color = "#ffeb3b";
+                
+                document.getElementById('score-base').innerText = merit;
+                document.getElementById('score-bonus').innerText = speedBonus;
+                
+                const totalScore = merit + speedBonus;
+                animateValue("score-total", 0, totalScore, 1000);
+
+            } else {
+                document.getElementById('game-over-title').innerText = "累積功德";
+                document.getElementById('game-over-title').style.color = "#ccc";
+                document.getElementById('score-base').innerText = merit;
+                document.getElementById('score-bonus').innerText = "0";
+                document.getElementById('score-total').innerText = merit;
+            }
+
+            setTimeout(() => {
+                gameOverModal.style.display = 'block';
+            }, 1800);
+        }
+
+        function animateValue(id, start, end, duration) {
+            const obj = document.getElementById(id);
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                obj.innerHTML = Math.floor(progress * (end - start) + start);
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        function shuffleArray(array) {
+            let currentIndex = array.length, randomIndex;
+            while (currentIndex != 0) {
+                randomIndex = Math.floor(Math.random() * currentIndex);
+                currentIndex--;
+                [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+            }
+            return array;
+        }
+
+        function generateQR() {
+            const rawText = document.getElementById('input-words').value;
+            const compressed = btoa(encodeURIComponent(rawText));
+            const url = window.location.origin + window.location.pathname + '?data=' + compressed;
+            
+            const qr = new QRious({
+                element: document.createElement('canvas'),
+                value: url,
+                size: 150
+            });
+            
+            const qrContainer = document.getElementById('qrcode');
+            qrContainer.innerHTML = '';
+            qrContainer.appendChild(qr.element);
+
+            const linkInput = document.getElementById('game-link');
+            linkInput.value = url;
+            document.getElementById('link-section').style.display = 'block';
+        }
+
+        function copyLink() {
+            const linkInput = document.getElementById('game-link');
+            // 如果目前是空白的，先自動生成
+            if (!linkInput.value) {
+                generateQR();
+            }
+            
+            linkInput.select();
+            linkInput.setSelectionRange(0, 99999);
+            try {
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(linkInput.value).then(() => {
+                        alert("✅ 連結已複製！");
+                    });
+                } else {
+                    document.execCommand('copy');
+                    alert("✅ 連結已複製！");
+                }
+            } catch (err) {
+                alert("複製失敗，請手動複製網址。");
+            }
+        }
+
+        // 修正：直接開啟功能
+        function openLink() {
+            // 1. 強制先執行產生 QR Code，確保網址是最新的輸入內容
+            generateQR();
+            
+            // 2. 取得網址並開啟
+            const url = document.getElementById('game-link').value;
+            if(url) {
+                window.open(url, '_blank');
+            }
+        }
+    </script>
+</body>
+</html>
