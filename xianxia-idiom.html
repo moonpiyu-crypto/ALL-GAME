@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>成語仙俠傳：御劍衛道</title>
-    <!-- 引入 QRious -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <style>
         :root {
@@ -18,6 +17,11 @@
             --text-color: #f4ecd8;
             --kai-font: "BiauKai", "DFKai-SB", "KaiU", "標楷體", "STKaiti", "Kaiti TC", "Kai", "AR PL UKai TW", "AR PL UKai CN", serif;
             --pixel-font: 'Press Start 2P', var(--kai-font), cursive;
+            
+            /* 遊戲場景動態變數預設值 */
+            --stage-bg-1: #aed6f1;
+            --stage-bg-2: #85c1e9;
+            --hero-color: #3498db;
         }
 
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -63,7 +67,7 @@
             padding: 20px;
             text-align: center;
             z-index: 20;
-            overflow-y: auto; /* 允許設定頁面捲動 */
+            overflow-y: auto;
         }
         
         #setup-screen h1 {
@@ -86,14 +90,31 @@
             position: relative;
         }
         
-        textarea {
-            width: 100%;
-            height: 150px;
+        /* 關卡設定區塊樣式 */
+        .level-block {
             background: #eceff1;
             border: 4px solid #78909c;
+            padding: 10px;
+            margin-bottom: 15px;
+            text-align: left;
+        }
+        .level-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+            color: #37474f;
+            font-size: 1.2rem;
+        }
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            background: #fff;
+            border: 2px solid #b0bec5;
             color: #37474f;
             padding: 10px;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-family: var(--kai-font);
             font-weight: bold;
             resize: none;
@@ -114,14 +135,16 @@
         }
         .btn:active { transform: translateY(6px); box-shadow: none; }
         .btn-secondary { background: #607d8b; border-color: #455a64; box-shadow: 0 6px 0 #263238; text-shadow: 2px 2px 0 #263238; }
-        .btn-small { padding: 8px 15px; font-size: 1.2rem; margin: 5px; }
+        .btn-small { padding: 8px 15px; font-size: 1.1rem; margin: 5px; box-shadow: 0 4px 0 #006064;}
+        .btn-small:active { transform: translateY(4px); box-shadow: none; }
+        .btn-danger { background: #e74c3c; border-color: #c0392b; box-shadow: 0 4px 0 #922b21; text-shadow: 1px 1px 0 #922b21; }
 
         #qr-container {
             background: white;
             padding: 20px;
             border: 6px solid var(--cyan-dark);
             margin-top: 20px;
-            margin-bottom: 50px; /* 預留底部空間 */
+            margin-bottom: 50px;
             display: none;
             flex-direction: column;
             align-items: center;
@@ -129,45 +152,28 @@
             max-width: 500px;
         }
         
-        #qr-code-canvas {
-            margin-bottom: 10px;
-            display: block;
-            border: 2px solid #ccc;
-        }
+        #qr-code-canvas { margin-bottom: 10px; display: block; border: 2px solid #ccc; }
 
         #link-container {
-            width: 100%;
-            margin-top: 15px;
-            border-top: 2px dashed #ccc;
-            padding-top: 15px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
+            width: 100%; margin-top: 15px; border-top: 2px dashed #ccc; padding-top: 15px;
+            display: flex; flex-direction: column; align-items: center;
         }
-
         #game-link-input {
-            width: 100%;
-            padding: 8px;
-            margin-bottom: 10px;
-            border: 2px solid #546e7a;
-            background: #eee;
-            color: #333;
-            font-size: 1rem;
-            border-radius: 4px;
+            width: 100%; padding: 8px; margin-bottom: 10px; border: 2px solid #546e7a;
+            background: #eee; color: #333; font-size: 1rem; border-radius: 4px;
         }
 
-        #game-screen {
-            justify-content: space-between;
-            background: #2b2b2b;
-        }
+        #game-screen { justify-content: space-between; background: #2b2b2b; }
 
+        /* 場景動態顏色套用 */
         .battle-stage {
             height: 45%; 
             width: 100%;
-            background: repeating-linear-gradient(to bottom, #aed6f1, #aed6f1 4px, #85c1e9 4px, #85c1e9 8px); 
+            background: repeating-linear-gradient(to bottom, var(--stage-bg-1), var(--stage-bg-1) 4px, var(--stage-bg-2) 4px, var(--stage-bg-2) 8px); 
             position: relative;
             overflow: hidden;
             border-bottom: 8px solid #34495e;
+            transition: background 1s ease;
         }
         
         .cloud-bg {
@@ -183,39 +189,21 @@
         @keyframes drift { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
         .hud-bar {
-            position: absolute;
-            top: 10px; left: 10px; right: 10px;
-            display: flex; justify-content: space-between;
-            align-items: center;
-            z-index: 10;
-            font-size: 1.1rem;
-            text-shadow: 2px 2px 0 #000;
-            color: #fff;
-            pointer-events: none;
-            font-family: var(--kai-font);
+            position: absolute; top: 10px; left: 10px; right: 10px;
+            display: flex; justify-content: space-between; align-items: center;
+            z-index: 10; font-size: 1.1rem; text-shadow: 2px 2px 0 #000; color: #fff;
+            pointer-events: none; font-family: var(--kai-font);
         }
 
-        #score-display {
-            color: #ffd700;
-            background: rgba(0, 0, 0, 0.5);
-            padding: 4px 8px;
-            border: 3px solid #fff;
-        }
+        #score-display { color: #ffd700; background: rgba(0, 0, 0, 0.5); padding: 4px 8px; border: 3px solid #fff; }
 
         #hero-container {
-            position: absolute;
-            bottom: 12%; 
-            left: 8%;
-            width: 80px; 
-            height: 80px;
-            z-index: 5;
-            transition: transform 0.1s;
+            position: absolute; bottom: 12%; left: 8%; width: 80px; height: 80px;
+            z-index: 5; transition: transform 0.1s;
         }
 
         .pixel-hero {
-            width: 100%;
-            height: 100%;
-            filter: drop-shadow(4px 4px 0 rgba(0,0,0,0.5));
+            width: 100%; height: 100%; filter: drop-shadow(4px 4px 0 rgba(0,0,0,0.5));
             shape-rendering: crispEdges;
         }
         
@@ -231,38 +219,22 @@
         }
 
         #hero-speech {
-            position: absolute;
-            bottom: 110%;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #fff;
-            color: #000;
-            padding: 4px 8px;
-            border: 3px solid #000;
-            font-weight: bold;
-            font-size: 1.1rem;
-            white-space: nowrap;
-            opacity: 0;
-            box-shadow: 4px 4px 0 rgba(0,0,0,0.5);
-            pointer-events: none;
-            font-family: var(--kai-font);
-            image-rendering: pixelated;
+            position: absolute; bottom: 110%; left: 50%; transform: translateX(-50%);
+            background: #fff; color: #000; padding: 4px 8px; border: 3px solid #000;
+            font-weight: bold; font-size: 1.1rem; white-space: nowrap; opacity: 0;
+            box-shadow: 4px 4px 0 rgba(0,0,0,0.5); pointer-events: none;
+            font-family: var(--kai-font); image-rendering: pixelated;
         }
         .show-speech { opacity: 1 !important; animation: floatUpPixel 1s steps(10) forwards; }
 
         .monster {
-            position: absolute;
-            bottom: 12%; 
-            width: 70px; height: 70px;
+            position: absolute; bottom: 12%; width: 70px; height: 70px;
             display: flex; align-items: center; justify-content: center;
-            z-index: 4;
-            transition: transform 0.1s;
+            z-index: 4; transition: transform 0.1s;
         }
         .pixel-monster {
-            width: 100%; height: 100%;
-            filter: drop-shadow(4px 4px 0 rgba(0,0,0,0.5));
-            shape-rendering: crispEdges;
-            animation: monsterWalk 0.8s steps(4) infinite;
+            width: 100%; height: 100%; filter: drop-shadow(4px 4px 0 rgba(0,0,0,0.5));
+            shape-rendering: crispEdges; animation: monsterWalk 0.8s steps(4) infinite;
         }
         @keyframes monsterWalk { 0% { transform: translateY(0); } 50% { transform: translateY(-6px); } 100% { transform: translateY(0); } }
 
@@ -276,89 +248,46 @@
         .monster.boss-size .pixel-monster { filter: drop-shadow(6px 6px 0 rgba(0,0,0,0.6)); }
 
         .score-float {
-            position: absolute;
-            color: #ffd700;
-            font-family: var(--pixel-font);
-            font-size: 1.2rem;
-            text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
-            animation: floatScorePixel 0.8s steps(8) forwards;
-            pointer-events: none;
-            z-index: 20;
+            position: absolute; color: #ffd700; font-family: var(--pixel-font);
+            font-size: 1.2rem; text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+            animation: floatScorePixel 0.8s steps(8) forwards; pointer-events: none; z-index: 20;
         }
-        @keyframes floatScorePixel {
-            0% { transform: translateY(0); opacity: 1; }
-            100% { transform: translateY(-60px); opacity: 0; }
-        }
+        @keyframes floatScorePixel { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-60px); opacity: 0; } }
 
         .projectile {
-            position: absolute;
-            width: 48px; height: 48px;
-            z-index: 6;
+            position: absolute; width: 48px; height: 48px; z-index: 6;
             background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" shape-rendering="crispEdges"><path d="M2 20 L4 22 L22 4 L20 2 Z" fill="%23ffd700"/><path d="M5 17 L7 19 L19 7 L17 5 Z" fill="%23fff"/><rect x="1" y="19" width="4" height="4" fill="%23c62828"/></svg>');
-            background-size: contain;
-            filter: drop-shadow(2px 2px 0 #c62828);
+            background-size: contain; filter: drop-shadow(2px 2px 0 #c62828);
             transition: left 0.3s linear, top 0.3s linear;
         }
 
         .control-panel {
-            flex: 1; 
-            background: #34495e;
-            width: 100%;
-            display: flex; 
-            flex-direction: column; 
-            padding: 8px;
-            box-shadow: 0 -8px 0 rgba(0,0,0,0.5);
-            border-top: 8px solid #2c3e50;
-            overflow: hidden; 
+            flex: 1; background: #34495e; width: 100%; display: flex; flex-direction: column; 
+            padding: 8px; box-shadow: 0 -8px 0 rgba(0,0,0,0.5); border-top: 8px solid #2c3e50; overflow: hidden; 
         }
 
         .input-display-area {
-            display: flex; 
-            justify-content: center; 
-            margin-bottom: 8px; 
-            gap: 8px;
-            flex-shrink: 0;
-            height: 50px; 
+            display: flex; justify-content: center; margin-bottom: 8px; gap: 8px; flex-shrink: 0; height: 50px; 
         }
         .slot {
-            width: 50px; height: 50px;
-            background: #2c3e50;
-            border: 4px solid #7f8c8d;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 1.5rem;
-            color: #ecf0f1;
-            font-family: var(--kai-font);
-            box-shadow: inset 4px 4px 0 rgba(0,0,0,0.3);
+            width: 50px; height: 50px; background: #2c3e50; border: 4px solid #7f8c8d;
+            display: flex; align-items: center; justify-content: center; font-size: 1.5rem;
+            color: #ecf0f1; font-family: var(--kai-font); box-shadow: inset 4px 4px 0 rgba(0,0,0,0.3);
         }
         .slot.filled {
-            background: #3498db; border-color: #2980b9; color: #fff;
-            box-shadow: inset -4px -4px 0 rgba(0,0,0,0.2);
+            background: #3498db; border-color: #2980b9; color: #fff; box-shadow: inset -4px -4px 0 rgba(0,0,0,0.2);
         }
 
         .grid-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(18%, 1fr));
-            grid-auto-rows: 1fr;
-            gap: 6px;
-            flex: 1; 
-            width: 100%;
-            padding: 2px;
-            overflow-y: auto; 
-            align-content: start; 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(18%, 1fr)); grid-auto-rows: 1fr;
+            gap: 6px; flex: 1; width: 100%; padding: 2px; overflow-y: auto; align-content: start; 
         }
         
         .char-btn {
-            min-height: 50px; 
-            background: #95a5a6;
-            border: 4px solid #7f8c8d;
-            color: #2c3e50;
-            font-size: 1.5rem;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer;
-            box-shadow: 0 4px 0 #546e7a;
-            text-shadow: 1px 1px 0 #fff;
-            font-family: var(--kai-font);
-            border-radius: 4px;
+            min-height: 50px; background: #95a5a6; border: 4px solid #7f8c8d; color: #2c3e50;
+            font-size: 1.5rem; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; box-shadow: 0 4px 0 #546e7a; text-shadow: 1px 1px 0 #fff;
+            font-family: var(--kai-font); border-radius: 4px;
         }
         .char-btn:active { transform: translateY(4px); box-shadow: none; }
         .char-btn.used { 
@@ -367,70 +296,25 @@
         }
 
         .overlay {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85);
             display: none; flex-direction: column; align-items: center; justify-content: center;
             z-index: 50; text-align: center;
         }
-        .overlay h1 { 
-            font-size: 3rem; 
-            color: var(--gold-color); 
-            text-shadow: 4px 4px 0 #c62828;
-            font-family: var(--kai-font); 
-            margin-bottom: 10px;
-        }
-        .overlay p {
-            font-family: var(--kai-font);
-            font-size: 1.5rem;
-            color: white;
-            text-shadow: 2px 2px 0 #000;
-            margin: 20px 0;
-        }
+        .overlay h1 { font-size: 3rem; color: var(--gold-color); text-shadow: 4px 4px 0 #c62828; font-family: var(--kai-font); margin-bottom: 10px; }
+        .overlay p { font-family: var(--kai-font); font-size: 1.5rem; color: white; text-shadow: 2px 2px 0 #000; margin: 20px 0; }
 
-        /* Start Overlay */
         #start-overlay { background: rgba(0, 0, 0, 0.85); }
-        
-        #start-btn-large {
-            font-size: 2.5rem;
-            padding: 20px 50px;
-            border-width: 6px;
-            animation: pulse 1.5s infinite;
-            background: #e74c3c;
-            border-color: #c0392b;
-            color: #fff;
-        }
+        #start-btn-large { font-size: 2.5rem; padding: 20px 50px; border-width: 6px; animation: pulse 1.5s infinite; background: #e74c3c; border-color: #c0392b; color: #fff; }
 
-        /* 解釋卡片 */
         #explanation-modal {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
-            display: none; 
-            flex-direction: column; align-items: center; justify-content: center;
-            z-index: 40;
-            animation: fadeIn 0.3s;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7);
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 40; animation: fadeIn 0.3s;
         }
-        .exp-card {
-            background: var(--paper-color);
-            border: 6px solid #546e7a;
-            box-shadow: 10px 10px 0 rgba(0,0,0,0.6);
-            padding: 20px;
-            width: 85%; max-width: 450px;
-            text-align: center;
-            position: relative;
-        }
-        .exp-title {
-            font-size: 2.2rem; color: #c62828; margin-bottom: 10px;
-            font-family: var(--kai-font); text-shadow: 1px 1px 0 #fff;
-        }
-        .exp-text {
-            font-size: 1.4rem; color: #333; line-height: 1.5;
-            margin-bottom: 20px; font-family: var(--kai-font);
-        }
-        .exp-btn {
-            background: #27ae60; border: 4px solid #2ecc71; color: white;
-            font-size: 1.4rem; padding: 10px 25px; cursor: pointer;
-            box-shadow: 0 6px 0 #1e8449; font-family: var(--kai-font);
-        }
+        .exp-card { background: var(--paper-color); border: 6px solid #546e7a; box-shadow: 10px 10px 0 rgba(0,0,0,0.6); padding: 20px; width: 85%; max-width: 450px; text-align: center; position: relative; }
+        .exp-title { font-size: 2.2rem; color: #c62828; margin-bottom: 10px; font-family: var(--kai-font); text-shadow: 1px 1px 0 #fff; }
+        .exp-text { font-size: 1.4rem; color: #333; line-height: 1.5; margin-bottom: 20px; font-family: var(--kai-font); }
+        .exp-btn { background: #27ae60; border: 4px solid #2ecc71; color: white; font-size: 1.4rem; padding: 10px 25px; cursor: pointer; box-shadow: 0 6px 0 #1e8449; font-family: var(--kai-font); }
         .exp-btn:active { transform: translateY(6px); box-shadow: none; }
 
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -438,7 +322,6 @@
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
         .shake { animation: shake 0.4s steps(4); }
         @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
-
     </style>
 </head>
 <body>
@@ -446,17 +329,12 @@
     <!-- 1. 設定畫面 -->
     <div id="setup-screen" class="screen active">
         <h1>🗡️ 成語仙俠傳</h1>
-        <div class="scroll-paper">
-            <p style="font-size: 1.1rem; margin-top:0; color: #555;">請輸入：<b>成語:解釋</b> (一行一組)</p>
-            <div class="input-group">
-                <textarea id="idiom-input" placeholder="範例：
-一石二鳥:比喻做一件事獲得兩種效果
-守株待兔:比喻拘泥守成，不知變通
-畫蛇添足:比喻多此一舉，反把事情弄糟
-井底之蛙:比喻見識淺薄的人
-車水馬龍:形容車馬往來繁華熱鬧
-七上八下:形容心情忐忑不安"></textarea>
+        <div class="scroll-paper" id="scroll-paper">
+            <p style="font-size: 1.1rem; margin-top:0; color: #555;">自訂關卡 (最多6關)：請輸入 <b>成語:解釋</b></p>
+            <div id="levels-container">
+                <!-- JavaScript 將會在此動態生成關卡區塊 -->
             </div>
+            <button class="btn btn-small btn-secondary" onclick="addLevelBlock()" id="btn-add-level" style="margin-top: 10px;">+ 新增下一關</button>
         </div>
         <div>
             <button class="btn" onclick="generateQR()">產生遊戲</button>
@@ -490,6 +368,7 @@
 
             <div id="hero-container">
                 <div id="hero-speech">劍來!</div>
+                <!-- 主角衣服使用 CSS 變數 var(--hero-color) 支援換裝 -->
                 <svg class="pixel-hero pixel-hero-idle" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
                     <rect x="12" y="2" width="8" height="4" fill="#2c3e50"/>
                     <rect x="10" y="4" width="2" height="6" fill="#2c3e50"/>
@@ -498,15 +377,15 @@
                     <rect x="14" y="8" width="2" height="2" fill="#000"/>
                     <rect x="18" y="8" width="2" height="2" fill="#000"/>
                     <rect x="10" y="12" width="12" height="18" fill="#ecf0f1"/>
-                    <rect x="8" y="14" width="2" height="16" fill="#3498db"/>
-                    <rect x="22" y="14" width="2" height="16" fill="#3498db"/>
-                    <rect x="10" y="28" width="12" height="2" fill="#3498db"/>
+                    <rect x="8" y="14" width="2" height="16" fill="var(--hero-color, #3498db)"/>
+                    <rect x="22" y="14" width="2" height="16" fill="var(--hero-color, #3498db)"/>
+                    <rect x="10" y="28" width="12" height="2" fill="var(--hero-color, #3498db)"/>
                     <rect x="10" y="20" width="12" height="2" fill="#2c3e50"/>
                     <rect x="14" y="20" width="4" height="2" fill="#f1c40f"/>
                     <rect x="6" y="18" width="4" height="4" fill="#f1c40f"/>
                     <rect x="22" y="18" width="4" height="4" fill="#f1c40f"/>
-                    <rect x="10" y="14" width="2" height="4" fill="#3498db" opacity="0.6"/>
-                    <rect x="20" y="14" width="2" height="4" fill="#3498db" opacity="0.6"/>
+                    <rect x="10" y="14" width="2" height="4" fill="var(--hero-color, #3498db)" opacity="0.6"/>
+                    <rect x="20" y="14" width="2" height="4" fill="var(--hero-color, #3498db)" opacity="0.6"/>
                 </svg>
             </div>
             
@@ -543,17 +422,27 @@
     </div>
 
     <script>
+        // 定義像素怪物，包含新增的岩石巨魔(golem)
         const PIXEL_MONSTERS = {
             'ghost': '<rect x="4" y="4" width="24" height="24" fill="#bdc3c7"/><rect x="8" y="10" width="4" height="4" fill="#000"/><rect x="20" y="10" width="4" height="4" fill="#000"/><rect x="4" y="28" width="4" height="4" fill="#bdc3c7"/><rect x="12" y="28" width="4" height="4" fill="#bdc3c7"/><rect x="20" y="28" width="4" height="4" fill="#bdc3c7"/><rect x="24" y="28" width="4" height="4" fill="#bdc3c7"/>',
             'slime': '<rect x="4" y="16" width="24" height="12" fill="#2ecc71"/><rect x="8" y="12" width="16" height="4" fill="#2ecc71"/><rect x="12" y="8" width="8" height="4" fill="#2ecc71"/><rect x="10" y="20" width="4" height="4" fill="#27ae60"/><rect x="22" y="20" width="4" height="4" fill="#27ae60"/>',
             'bat': '<rect x="12" y="12" width="8" height="8" fill="#34495e"/><rect x="4" y="8" width="8" height="8" fill="#2c3e50"/><rect x="20" y="8" width="8" height="8" fill="#2c3e50"/><rect x="2" y="16" width="4" height="4" fill="#2c3e50"/><rect x="26" y="16" width="4" height="4" fill="#2c3e50"/><rect x="14" y="14" width="1" height="1" fill="#e74c3c"/><rect x="17" y="14" width="1" height="1" fill="#e74c3c"/>',
             'dragon': '<rect x="8" y="8" width="20" height="16" fill="#e74c3c"/><rect x="4" y="4" width="8" height="8" fill="#c0392b"/><rect x="20" y="4" width="4" height="4" fill="#c0392b"/><rect x="24" y="8" width="4" height="4" fill="#c0392b"/><rect x="8" y="24" width="4" height="4" fill="#c0392b"/><rect x="20" y="24" width="4" height="4" fill="#c0392b"/><rect x="2" y="12" width="6" height="4" fill="#f1c40f"/><rect x="6" y="10" width="2" height="2" fill="#000"/><rect x="26" y="16" width="4" height="4" fill="#c0392b"/>',
-            'demon': '<rect x="8" y="4" width="16" height="20" fill="#8e44ad"/><rect x="4" y="8" width="4" height="12" fill="#9b59b6"/><rect x="24" y="8" width="4" height="12" fill="#9b59b6"/><rect x="8" y="24" width="8" height="4" fill="#8e44ad"/><rect x="20" y="24" width="8" height="4" fill="#8e44ad"/><rect x="12" y="8" width="8" height="8" fill="#2c3e50"/><rect x="14" y="10" width="2" height="2" fill="#e74c3c"/><rect x="18" y="10" width="2" height="2" fill="#e74c3c"/><rect x="12" y="2" width="2" height="4" fill="#f1c40f"/><rect x="18" y="2" width="2" height="4" fill="#f1c40f"/>'
+            'demon': '<rect x="8" y="4" width="16" height="20" fill="#8e44ad"/><rect x="4" y="8" width="4" height="12" fill="#9b59b6"/><rect x="24" y="8" width="4" height="12" fill="#9b59b6"/><rect x="8" y="24" width="8" height="4" fill="#8e44ad"/><rect x="20" y="24" width="8" height="4" fill="#8e44ad"/><rect x="12" y="8" width="8" height="8" fill="#2c3e50"/><rect x="14" y="10" width="2" height="2" fill="#e74c3c"/><rect x="18" y="10" width="2" height="2" fill="#e74c3c"/><rect x="12" y="2" width="2" height="4" fill="#f1c40f"/><rect x="18" y="2" width="2" height="4" fill="#f1c40f"/>',
+            'golem': '<rect x="6" y="6" width="20" height="20" fill="#7f8c8d"/><rect x="4" y="10" width="24" height="12" fill="#95a5a6"/><rect x="10" y="12" width="4" height="4" fill="#f1c40f"/><rect x="18" y="12" width="4" height="4" fill="#f1c40f"/><rect x="8" y="26" width="6" height="6" fill="#7f8c8d"/><rect x="18" y="26" width="6" height="6" fill="#7f8c8d"/>'
         };
-        const NORMAL_MONSTERS = ['ghost', 'slime', 'bat'];
-        const BOSS_MONSTERS = ['dragon', 'demon'];
 
-        let idiomData = [];
+        // 六個關卡的場景配置與專屬怪物 (嚴守原色調擴展)
+        const LEVEL_THEMES = [
+            { bg1: '#aed6f1', bg2: '#85c1e9', hero: '#3498db', normal: 'slime', boss: 'ghost' },   // 第1關：水藍晴空
+            { bg1: '#abebc6', bg2: '#82e0aa', hero: '#27ae60', normal: 'bat', boss: 'slime' },     // 第2關：碧綠仙林
+            { bg1: '#fad7a1', bg2: '#f8c471', hero: '#d35400', normal: 'ghost', boss: 'bat' },     // 第3關：金黃大漠
+            { bg1: '#d2b4de', bg2: '#bb8fce', hero: '#8e44ad', normal: 'golem', boss: 'dragon' },  // 第4關：紫幽魔境
+            { bg1: '#d5dbdb', bg2: '#b2babb', hero: '#2c3e50', normal: 'demon', boss: 'golem' },   // 第5關：灰白雪嶺
+            { bg1: '#f5b041', bg2: '#eb984e', hero: '#c0392b', normal: 'dragon', boss: 'demon' }   // 第6關：赤紅火山
+        ];
+
+        let levelDataArray = []; // 儲存所有關卡的資料：[ [{idiom, meaning},...], [{idiom, meaning},...] ]
         let currentLevelIdioms = []; 
         let selectedChars = [];
         let heroHP = 5;
@@ -568,6 +457,54 @@
 
         const CHINESE_NUMS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
 
+        // 初始化設定介面
+        let setupLevelCount = 0;
+        
+        function addLevelBlock(defaultText = "") {
+            if (setupLevelCount >= 6) return alert("最多只能設定 6 個關卡！");
+            
+            setupLevelCount++;
+            const container = document.getElementById('levels-container');
+            const levelDiv = document.createElement('div');
+            levelDiv.className = 'level-block';
+            levelDiv.innerHTML = `
+                <div class="level-header">
+                    <span class="level-title">第 ${setupLevelCount} 關</span>
+                </div>
+                <textarea class="level-textarea" placeholder="每行一組成語:解釋\n範例：\n一石二鳥:比喻做一件事獲得兩種效果">${defaultText}</textarea>
+            `;
+            container.appendChild(levelDiv);
+            updateLevelTitles();
+        }
+
+        function removeLevelBlock(btn) {
+            btn.closest('.level-block').remove();
+            setupLevelCount--;
+            updateLevelTitles();
+        }
+
+        function updateLevelTitles() {
+            const blocks = document.querySelectorAll('.level-block');
+            setupLevelCount = blocks.length;
+            blocks.forEach((block, index) => {
+                block.querySelector('.level-title').innerText = `第 ${index + 1} 關`;
+                let header = block.querySelector('.level-header');
+                let existingBtn = header.querySelector('button');
+                
+                if (index === 0 && existingBtn) {
+                    existingBtn.remove(); // 第一關不能刪除
+                } else if (index > 0 && !existingBtn) {
+                    let delBtn = document.createElement('button');
+                    delBtn.className = 'btn-small btn-danger';
+                    delBtn.style.margin = '0';
+                    delBtn.innerText = '刪除此關';
+                    delBtn.onclick = function() { removeLevelBlock(this); };
+                    header.appendChild(delBtn);
+                }
+            });
+            document.getElementById('btn-add-level').style.display = setupLevelCount >= 6 ? 'none' : 'inline-block';
+        }
+
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             const data = urlParams.get('data');
@@ -579,18 +516,16 @@
                 
                 if (data) {
                     try {
-                        const jsonStr = decodeURIComponent(atob(data));
-                        const parsedData = JSON.parse(jsonStr);
-                        
-                        if (parsedData.length > 0 && Array.isArray(parsedData[0])) {
-                            idiomData = parsedData.map(item => ({ idiom: item[0], meaning: item[1] }));
+                        const parsedData = JSON.parse(decodeURIComponent(atob(data)));
+                        if (parsedData.length > 0 && Array.isArray(parsedData[0]) && Array.isArray(parsedData[0][0])) {
+                            // 新格式: 支援多關卡
+                            levelDataArray = parsedData.map(lvl => lvl.map(item => ({idiom: item[0], meaning: item[1]})));
                         } else {
-                            idiomData = parsedData;
+                            // 舊格式相容: 全部當作第 1 關
+                            levelDataArray = [parsedData.map(item => ({idiom: item[0], meaning: item[1]}))];
                         }
-
                         prepareGameFromQR();
                         return;
-
                     } catch (e) { 
                         console.error(e); 
                         alert("遊戲資料讀取失敗，請重新掃描 QR Code。");
@@ -600,12 +535,12 @@
                 }
             } 
             
-            const defaultText = document.getElementById('idiom-input').value;
-            parseInput(defaultText);
+            // 預設給予第一關範例資料
+            addLevelBlock("一石二鳥:比喻做一件事獲得兩種效果\n守株待兔:比喻拘泥守成，不知變通\n畫蛇添足:比喻多此一舉，反把事情弄糟");
         };
 
         function parseInput(text) {
-            idiomData = [];
+            let parsed = [];
             const lines = text.split('\n');
             lines.forEach(line => {
                 if(!line.trim()) return; 
@@ -613,35 +548,38 @@
                 if (parts.length >= 2) {
                     const idiom = parts[0].trim();
                     const meaning = parts.slice(1).join(':').trim();
-                    if (idiom.length === 4) {
-                        idiomData.push({ idiom: idiom, meaning: meaning });
-                    }
+                    if (idiom.length === 4) parsed.push({ idiom: idiom, meaning: meaning });
                 } else if (parts[0].trim().length === 4) {
-                    idiomData.push({ idiom: parts[0].trim(), meaning: "無解釋" });
+                    parsed.push({ idiom: parts[0].trim(), meaning: "無解釋" });
                 }
             });
+            return parsed;
+        }
+
+        function extractAllLevelsData() {
+            let extractedData = [];
+            const textareas = document.querySelectorAll('.level-textarea');
+            textareas.forEach(ta => {
+                let parsed = parseInput(ta.value);
+                if (parsed.length > 0) extractedData.push(parsed);
+            });
+            return extractedData;
         }
 
         function generateQR() {
-            const input = document.getElementById('idiom-input').value;
-            if(!input.trim()) return alert("請輸入內容");
+            const extracted = extractAllLevelsData();
+            if (extracted.length === 0) return alert("請至少在一個關卡中輸入成語 (格式: 成語:解釋)");
             
-            parseInput(input);
-            if (idiomData.length === 0) return alert("請確認格式：成語:解釋");
-
-            const compactData = idiomData.map(item => [item.idiom, item.meaning]);
+            levelDataArray = extracted;
+            const compactData = levelDataArray.map(lvl => lvl.map(item => [item.idiom, item.meaning]));
             const jsonStr = JSON.stringify(compactData);
             const encoded = btoa(encodeURIComponent(jsonStr)); 
             
             const currentUrl = window.location.href.split('?')[0];
             const fullUrl = `${currentUrl}?data=${encoded}&mode=play`;
-            
-            // Remove limit check
-            // if (fullUrl.length > 2000) ...
 
             try {
                 if (typeof QRious === 'undefined') throw new Error("QRious 庫未載入");
-
                 const qr = new QRious({
                     element: document.getElementById('qr-code-canvas'),
                     value: fullUrl,
@@ -649,13 +587,9 @@
                     level: 'L'
                 });
                 
-                // 設定連結
                 document.getElementById('game-link-input').value = fullUrl;
-
                 document.getElementById('qr-container').style.display = 'flex';
-                // 滾動到 QR Code 區域
                 document.getElementById('qr-container').scrollIntoView({ behavior: 'smooth' });
-
             } catch (e) {
                 alert("QR Code 生成失敗：" + e.message);
                 console.error(e);
@@ -668,9 +602,7 @@
             input.setSelectionRange(0, 99999);
             navigator.clipboard.writeText(input.value).then(() => {
                 alert("連結已複製到剪貼簿！");
-            }).catch(err => {
-                alert("複製失敗，請手動複製。");
-            });
+            }).catch(err => alert("複製失敗，請手動複製。"));
         }
 
         function openGameLink() {
@@ -679,10 +611,10 @@
         }
 
         function startGameDirectly() {
-            const input = document.getElementById('idiom-input').value;
-            parseInput(input);
-            if (idiomData.length === 0) return alert("請至少輸入一個四字成語 (格式: 成語:解釋)");
+            const extracted = extractAllLevelsData();
+            if (extracted.length === 0) return alert("請至少在一個關卡中輸入成語 (格式: 成語:解釋)");
             
+            levelDataArray = extracted;
             document.getElementById('setup-screen').classList.remove('active');
             document.getElementById('game-screen').classList.add('active');
             document.getElementById('start-overlay').style.display = 'none'; 
@@ -708,7 +640,7 @@
             isGameOver = false;
             isPaused = false;
             
-            maxLevels = Math.ceil(idiomData.length / 5); 
+            maxLevels = levelDataArray.length; 
 
             updateHP();
             updateScoreUI();
@@ -730,20 +662,25 @@
             monsters.forEach(m => { if(m.el && m.el.parentNode) m.el.parentNode.removeChild(m.el); });
             monsters = [];
             
-            const startIndex = (currentLevel - 1) * 5;
-            const endIndex = startIndex + 5;
-            currentLevelIdioms = idiomData.slice(startIndex, endIndex);
+            currentLevelIdioms = levelDataArray[currentLevel - 1];
             
-            if (currentLevelIdioms.length === 0) {
+            if (!currentLevelIdioms || currentLevelIdioms.length === 0) {
                 gameOver(true);
                 return;
             }
+
+            // 套用場景動態主題 (地板顏色與主角衣服)
+            const themeIndex = (currentLevel - 1) % LEVEL_THEMES.length;
+            const theme = LEVEL_THEMES[themeIndex];
+            document.documentElement.style.setProperty('--stage-bg-1', theme.bg1);
+            document.documentElement.style.setProperty('--stage-bg-2', theme.bg2);
+            document.documentElement.style.setProperty('--hero-color', theme.hero);
 
             let chars = currentLevelIdioms.map(item => item.idiom).join('').split('');
             chars.sort(() => Math.random() - 0.5);
             renderGrid(chars);
             
-            spawnMonsters(currentLevelIdioms.length);
+            spawnMonsters(currentLevelIdioms.length, theme);
 
             if(gameLoopId) cancelAnimationFrame(gameLoopId);
             lastTime = performance.now();
@@ -751,19 +688,20 @@
             gameLoopId = requestAnimationFrame(gameLoop);
         }
 
-        function spawnMonsters(count) {
+        function spawnMonsters(count, theme) {
             const stage = document.getElementById('battle-stage');
             for(let i=0; i<count; i++) {
                 const el = document.createElement('div');
                 el.className = 'monster';
                 
                 let monsterType;
-                let isBoss = (i === count - 1 && currentLevel % 2 === 0);
+                let isBoss = (i === count - 1); // 此關最後一隻必定是 Boss 大小
+                
                 if (isBoss) {
-                    monsterType = BOSS_MONSTERS[Math.floor(Math.random() * BOSS_MONSTERS.length)];
+                    monsterType = theme.boss;
                     el.classList.add('boss-size');
                 } else {
-                    monsterType = NORMAL_MONSTERS[Math.floor(Math.random() * NORMAL_MONSTERS.length)];
+                    monsterType = theme.normal;
                 }
 
                 el.innerHTML = `
@@ -772,6 +710,7 @@
                     </svg>
                 `;
 
+                // 根據成語數量拉長生成間距，避免重疊
                 let startX = 100 + (i * 25);
                 el.style.left = startX + '%';
                 stage.appendChild(el);
@@ -780,7 +719,7 @@
                     id: Date.now() + i,
                     el: el,
                     x: startX,
-                    speed: 2 + (currentLevel * 0.5),
+                    speed: 2 + (currentLevel * 0.4), // 隨著關卡微幅加速
                     isDead: false,
                     points: isBoss ? 500 : 100 
                 });
